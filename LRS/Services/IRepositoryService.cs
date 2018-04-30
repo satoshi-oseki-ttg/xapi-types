@@ -9,5 +9,8 @@ namespace bracken_lrs.Services
     {
         Task SaveStatement(Statement statement, Guid? statementId, string lrsUrl, string userName);
         Task<Statement> GetStatement(Guid id);
+        Task SaveState(byte[] value, string stateId, string activityId, Agent agent);
+        Task<string> GetState(string stateId, string activityId, Agent agent);
+
     }
 }

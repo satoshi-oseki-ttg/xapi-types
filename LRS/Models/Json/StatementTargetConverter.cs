@@ -1,9 +1,10 @@
 
 using System;
+using bracken_lrs.Models.xAPI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace bracken_lrs.Models.xAPI
+namespace bracken_lrs.Models.Json
 {
     public class StatementTargetConverter : JsonConverter
     {
@@ -28,7 +29,15 @@ namespace bracken_lrs.Models.xAPI
                 }
    
                 var type = (string)jobj["objectType"];
-                return GetStatementTarget(jobj, type);
+
+                try
+                {
+                    return GetStatementTarget(jobj, type);
+                }
+                catch (Exception e)
+                {
+                    throw new JsonSerializationException(e.ToString());
+                }
             }
         }
 
@@ -51,6 +60,15 @@ namespace bracken_lrs.Models.xAPI
             else if (type == StatementRef.OBJECT_TYPE)
             {
                 target = jObject.ToObject<StatementRef>();
+            }
+            else if (type == SubStatement.OBJECT_TYPE)
+            {
+                target = jObject.ToObject<SubStatement>();
+            }
+
+            if (target == null)
+            {
+                throw new JsonSerializationException($"Type {type} is not valid.");
             }
 
             return target;

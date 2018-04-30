@@ -1,5 +1,11 @@
 ﻿using System;
-using Extensions = System.Collections.Generic.Dictionary<string, object>;
+using System.Collections.Generic;
+using System.Globalization;
+using bracken_lrs.Models.Json;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Bson.Serialization.Options;
+using Newtonsoft.Json;
 
 namespace bracken_lrs.Models.xAPI
 {
@@ -11,8 +17,26 @@ namespace bracken_lrs.Models.xAPI
         public ContextActivities ContextActivities { get; set; }
         public string Revision { get; set; }
         public string Platform { get; set; }
-        public string Language { get; set; }
+        private string language;
+        public string Language
+        {
+            get { return language; }
+            set
+            {
+                try
+                {
+                    new CultureInfo(value);
+                }
+                catch (ArgumentException)
+                {
+                    throw new JsonSerializationException($"{value} isn't a valid language code.");
+                }
+
+                language = value;
+            }
+        }
         public StatementRef Statement { get; set; }
-        public Extensions Extensions { get; set; }
+        [JsonConverter(typeof(ExtensionConverter))]
+        public BsonDocument Extensions { get; set; }
     }
 }

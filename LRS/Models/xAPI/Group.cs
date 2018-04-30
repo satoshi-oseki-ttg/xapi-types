@@ -8,7 +8,7 @@ namespace bracken_lrs.Models.xAPI
     public class Group : Agent
     {
         public static readonly new string OBJECT_TYPE = "Group";
-        public new/*??override*/ string ObjectType
+        public override string ObjectType
         {
             get { return OBJECT_TYPE; }
             set { objectType = value; } }

@@ -15,6 +15,11 @@ using Microsoft.Extensions.Options;
 using Hangfire;
 using System.Net.WebSockets;
 using bracken_lrs.SignalR;
+using Newtonsoft.Json.Serialization;
+using Newtonsoft.Json;
+using bracken_lrs.Models.Json;
+using MongoDB.Bson;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace bracken_lrs
 {
@@ -50,12 +55,18 @@ namespace bracken_lrs
             // Add Hangfire services. 
             services.AddHangfire(x => x.UseSqlServerStorage(Configuration.GetConnectionString("HangfireDbConnection"))); 
 
-            services.AddMvc()
+            services.AddMvc
+            (
+                options =>
+                options.ModelMetadataDetailsProviders.Add(
+                    new SuppressChildValidationMetadataProvider(typeof(BsonDocument)))
+            )
                 .AddJsonOptions(options =>
                 {
-                    //options.SerializerSettings.Converters.Add(new Newtonsoft.Json.Converters.StringEnumConverter());
+                    options.SerializerSettings.Converters.Add(new PropertyNameConverter());
                     options.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore;
                     //options.SerializerSettings.TypeNameHandling = Newtonsoft.Json.TypeNameHandling.All;
+                    
                 });
         }
 

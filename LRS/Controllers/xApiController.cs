@@ -33,13 +33,6 @@ namespace bracken_lrs.Controllers
             _repositoryService = repositoryService;
         }
 
-        // GET api/values
-        [HttpGet("activities/state")]
-        public string Get([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
-        {
-            return _xApiService.GetState(stateId, activityId, agent);
-        }
-
         // GET api/values/5
         [HttpGet("statements")]
         public async Task<Statement> GetStatement([FromQuery]Guid statementId)
@@ -48,10 +41,12 @@ namespace bracken_lrs.Controllers
         }
 
         // POST api/values
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
         [HttpPost("statements")]
-        public async Task<IActionResult> PostStatements([FromBody]Statement value)
+        public async Task<IActionResult> PostStatement([FromBody]Statement value)
         {
-            if (!ModelState.IsValid)
+            if (!ModelState.IsValid || !IsStatementValid(value))
             {
                 return BadRequest(ModelState);
             }
@@ -63,15 +58,26 @@ namespace bracken_lrs.Controllers
                 await _repositoryService.SaveStatement(value, null, lrsUrl, userName);
                 return Ok();
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                return await Task.FromResult(BadRequest());
+                return await Task.FromResult(BadRequest(e));
             }
+        }
+
+        private bool IsStatementValid(Statement value)
+        {
+            if (value.Verb.Id == new Uri("http://adlnet.gov/expapi/verbs/voided")
+                && value.Target as StatementRef == null)
+            {
+                return false;
+            }
+
+            return true;
         }
 
         [ProducesResponseType(204)]
         [HttpPut("statements")]
-        public async Task Put([FromBody]Statement value, [FromQuery]Guid statementId, [FromQuery]Guid publishedResultID)
+        public async Task PutStatement([FromBody]Statement value, [FromQuery]Guid statementId, [FromQuery]Guid publishedResultID)
         {
             var userName = User.Identity.Name;
             var lrsUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.Value}";
@@ -94,9 +100,30 @@ namespace bracken_lrs.Controllers
             // }
         }
 
+        [HttpPut("activities/state")]
+        public async Task PutState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent, [FromQuery]Guid publishedResultID)
+        {
+            using (var ms = new MemoryStream(2048))
+            {
+                Request.Body.CopyTo(ms);
+                var value = ms.ToArray();
+                var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
+                //_xApiService.SaveState(value, stateId, activityId, agent);
+                //_jobQueueService.EnqueueState(value, stateId, activityId, agent);
+                await _repositoryService.SaveState(value, stateId, activityId, agentObject);
+            }
+        }
+
+        [HttpGet("activities/state")]
+        public async Task<string> GetState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
+        {
+            var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
+            return await _repositoryService.GetState(stateId, activityId, agentObject);
+        }
+
         [ProducesResponseType(204)]
         [HttpPut("statements2")]
-        public void PutStatement([FromBody]Statement value, [FromQuery]Guid statementId, [FromQuery]Guid publishedResultID)
+        public void PutStatement2([FromBody]Statement value, [FromQuery]Guid statementId, [FromQuery]Guid publishedResultID)
         {
             // var json = value.ToString();
             // _xApiService.SaveStatement(value, statementId);
@@ -114,23 +141,5 @@ namespace bracken_lrs.Controllers
             //     httpClient.PutAsync(url, content);
             // }
         }
-
-        [HttpPut("activities/state")]
-        public void PutState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent, [FromQuery]Guid publishedResultID)
-        {
-            using (var ms = new MemoryStream(2048))
-            {
-                Request.Body.CopyTo(ms);
-                var value = ms.ToArray();
-                //_xApiService.SaveState(value, stateId, activityId, agent);
-                _jobQueueService.EnqueueState(value, stateId, activityId, agent);
-            }
-        }
-
-        // DELETE api/values/5
-        // [HttpDelete("{id}")]
-        // public void Delete(int id)
-        // {
-        // }
     }
 }

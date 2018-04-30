@@ -8,7 +8,7 @@ namespace bracken_lrs.Models.xAPI
     {
         public static readonly string OBJECT_TYPE = "Agent";
         protected string objectType; // SO: Added this field for deserialisation
-        public string ObjectType
+        public virtual string ObjectType
         {
             get { return OBJECT_TYPE; }
             set { objectType = value; }

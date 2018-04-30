@@ -1,26 +1,22 @@
 using System;
 using System.Collections.Generic;
+using bracken_lrs.DictionaryExtensions;
 
 namespace bracken_lrs.Models.xAPI
 {
     public class InteractionComponent
     {
-        private string id;
-        public Uri Id
+        public string Id { get; set; }
+        private Dictionary<string, string> description;
+        public Dictionary<string, string> Description
         {
-            get
+            get { return description; }
+            set
             {
-                try
-                {
-                    return new Uri(id);
-                }
-                catch(Exception)
-                {
-                    return null;
-                }
+                value.CheckLanguageCodes();
+
+                description = value;
             }
-            set { this.id = value.ToString(); }
         }
-        public Dictionary<string, string> Description { get; set; }
     }
 }

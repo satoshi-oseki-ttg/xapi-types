@@ -8,7 +8,7 @@ namespace bracken_lrs.Services
     public interface IRepositoryService
     {
         Task SaveStatement(Statement statement, Guid? statementId, string lrsUrl, string userName);
-        Task<Statement> GetStatement(Guid id);
+        Task<Statement> GetStatement(Guid? id, bool toGetVoided = false);
         Task SaveState(byte[] value, string stateId, string activityId, Agent agent);
         Task<string> GetState(string stateId, string activityId, Agent agent);
 

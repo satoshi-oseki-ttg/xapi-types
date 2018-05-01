@@ -33,11 +33,19 @@ namespace bracken_lrs.Controllers
             _repositoryService = repositoryService;
         }
 
-        // GET api/values/5
         [HttpGet("statements")]
-        public async Task<Statement> GetStatement([FromQuery]Guid statementId)
+        public async Task<IActionResult> GetStatement([FromQuery]Guid statementId, [FromQuery]Guid voidedStatementId)
         {
-            return await _repositoryService.GetStatement(statementId);
+            Request.HttpContext.Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
+
+            var id = voidedStatementId == Guid.Empty ? statementId : voidedStatementId;
+            var statement = await _repositoryService.GetStatement(id, voidedStatementId != Guid.Empty);
+            if (statement == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(statement);
         }
 
         // POST api/values

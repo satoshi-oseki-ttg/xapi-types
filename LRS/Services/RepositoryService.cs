@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 using Newtonsoft.Json.Linq;
 using bracken_lrs.Models.xAPI;
 using MongoDB.Bson.Serialization.Conventions;
@@ -55,6 +56,11 @@ namespace bracken_lrs.Services
                 return;
             }
 
+            if (await IsTargetVoided(statement))
+            {
+                throw new Exception("Target has been voided.");
+            }
+
             if (statementId == null && statement.Id == null)
             {
                 statement.Id = Guid.NewGuid();
@@ -75,18 +81,81 @@ namespace bracken_lrs.Services
                 .InsertOneAsync(statement);
         }
 
-        public async Task<Statement> GetStatement(Guid id)
+        public async Task<Statement> GetStatement(Guid? id, bool toGetVoided = false)
         {
+            if (!toGetVoided && await IsVoided(id))
+            {
+                return null;
+            }
+
             var collection = _db.GetCollection<Statement>(statementCollection);
             if (collection == null)
             {
                 return null;
             }
-
             var cursor = await collection.FindAsync(x => x.Id == id);
             var statements = cursor.ToList();
 
             return (statements.Count > 0) ? statements[0] : null;
+        }
+
+        private async Task<bool> IsVoided(Guid? id)
+        {
+            var collection = _db.GetCollection<Statement>(statementCollection);
+            if (collection == null)
+            {
+                return false;
+            }
+
+            using (var statementRefCurosr = await collection.FindAsync(x => x.Target as StatementRef != null))
+            {
+                using (var voidedCursor = await collection.FindAsync(x => ((StatementRef)(x.Target)).Id == id))
+                {
+                    var voided = voidedCursor.ToList();
+                    return voided.Count() > 0;
+                }
+            }           
+        }
+
+        private async Task<bool> IsTargetVoided(Statement statement)
+        {
+            var activity = statement.Target as Activity;
+            if (activity == null)
+            {
+                return false;
+            }
+            var targetId = activity.Id;
+
+            var collection = _db.GetCollection<Statement>(statementCollection);
+            if (collection == null)
+            {
+                return false;
+            }
+
+            using (var voidedCursor = await collection.FindAsync(x => x.Verb.Id == new Uri("http://adlnet.gov/expapi/verbs/voided")))
+            {
+                var voided = voidedCursor.ToList();
+                foreach (var s in voided)
+                {
+                    var statementRef = s.Target as StatementRef;
+                    if (statementRef == null)
+                    {
+                        continue;
+                    }
+                    var voidedStatement = await GetStatement(statementRef.Id, true);
+                    if (voidedStatement == null)
+                    {
+                        continue;
+                    }
+                    var voidedTarget = voidedStatement.Target as Activity;
+                    if (voidedTarget != null && voidedTarget.Id == targetId)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         public async Task SaveState(byte[] value, string stateId, string activityId, Agent agent)

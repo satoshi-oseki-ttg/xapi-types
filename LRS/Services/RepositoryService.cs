@@ -13,6 +13,7 @@ using Newtonsoft.Json.Linq;
 using bracken_lrs.Models.xAPI;
 using MongoDB.Bson.Serialization.Conventions;
 using bracken_lrs.Models.xAPI.Documents;
+using Newtonsoft.Json;
 
 namespace bracken_lrs.Services
 {
@@ -49,16 +50,19 @@ namespace bracken_lrs.Services
             _db = _client.GetDatabase(dbName);
          }
         
-        public async Task<string[]> SaveStatement(Statement statement, Guid? statementId, string lrsUrl, string userName)
+        public async Task<string[]> SaveStatement(string json, Guid? statementId, string lrsUrl, string userName)
         {
+            var statement = JsonConvert.DeserializeObject<Statement>(json);
             if (await IsVoided(statement.Id))
             {
                 throw new Exception("Statement has been voided.");
             }
 
+            ValidateStatement(statement);
+
             if (statement == null)
             {
-                return new string [] {};
+                throw new Exception("Failed to deserialise Statement object.");
             }
 
             if (statementId == null && (statement.Id == null || statement.Id == Guid.Empty))
@@ -81,6 +85,15 @@ namespace bracken_lrs.Services
                 .InsertOneAsync(statement);
             
             return new [] { statement.Id.ToString() };
+        }
+
+        private void ValidateStatement(Statement value)
+        {
+            if (value.Verb.Id == new Uri("http://adlnet.gov/expapi/verbs/voided")
+                && value.Target as StatementRef == null)
+            {
+                throw new Exception("StatementRef isn't set for verb 'voided'.");
+            }
         }
 
         public async Task<Statement> GetStatement(Guid? id, bool toGetVoided = false)
@@ -123,6 +136,19 @@ namespace bracken_lrs.Services
             }
 
             return false;
+        }
+
+        public async Task<IList<Statement>> GetStatements()
+        {
+            var collection = _db.GetCollection<Statement>(statementCollection);
+            if (collection == null)
+            {
+                return null;
+            }
+            var cursor = await collection.FindAsync(new BsonDocument());
+            var statements = cursor.ToList();
+
+            return statements;
         }
 
         private async Task<bool> IsTargetVoided(Statement statement)

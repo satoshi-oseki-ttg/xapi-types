@@ -49,19 +49,19 @@ namespace bracken_lrs.Services
             _db = _client.GetDatabase(dbName);
          }
         
-        public async Task SaveStatement(Statement statement, Guid? statementId, string lrsUrl, string userName)
+        public async Task<string[]> SaveStatement(Statement statement, Guid? statementId, string lrsUrl, string userName)
         {
+            if (await IsVoided(statement.Id))
+            {
+                throw new Exception("Statement has been voided.");
+            }
+
             if (statement == null)
             {
-                return;
+                return new string [] {};
             }
 
-            if (await IsTargetVoided(statement))
-            {
-                throw new Exception("Target has been voided.");
-            }
-
-            if (statementId == null && statement.Id == null)
+            if (statementId == null && (statement.Id == null || statement.Id == Guid.Empty))
             {
                 statement.Id = Guid.NewGuid();
             }
@@ -79,6 +79,8 @@ namespace bracken_lrs.Services
 
             await _db.GetCollection<Statement>(statementCollection)
                 .InsertOneAsync(statement);
+            
+            return new [] { statement.Id.ToString() };
         }
 
         public async Task<Statement> GetStatement(Guid? id, bool toGetVoided = false)
@@ -107,14 +109,20 @@ namespace bracken_lrs.Services
                 return false;
             }
 
-            using (var statementRefCurosr = await collection.FindAsync(x => x.Target as StatementRef != null))
+            using (var statementsCursor = await collection.FindAsync(new BsonDocument()))
             {
-                using (var voidedCursor = await collection.FindAsync(x => ((StatementRef)(x.Target)).Id == id))
+                var statements = statementsCursor.ToList();
+                foreach (var s in statements)
                 {
-                    var voided = voidedCursor.ToList();
-                    return voided.Count() > 0;
+                    if (s.Target as StatementRef != null
+                        && ((StatementRef)s.Target).Id == id)
+                    {
+                        return true;
+                    }
                 }
-            }           
+            }
+
+            return false;
         }
 
         private async Task<bool> IsTargetVoided(Statement statement)

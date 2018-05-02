@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace bracken_lrs.Models.xAPI
@@ -11,7 +12,14 @@ namespace bracken_lrs.Models.xAPI
         public string ObjectType
         {
             get { return OBJECT_TYPE; }
-            set { objectType = value; }
+            set
+            {
+                if (value != OBJECT_TYPE)
+                {
+                    throw new Exception("ObjectType must be StatementRef");
+                }
+                objectType = value;
+            }
         }
 
         public Guid? Id { get; set; }
@@ -19,6 +27,16 @@ namespace bracken_lrs.Models.xAPI
         public StatementRef(Guid id)
         {
             Id = id;
+        }
+
+        // Validation
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            if (Id == null || Id == Guid.Empty)
+            {
+                throw new Exception("A Sub-Statement must have its id set.");
+            }
         }
     }
 }

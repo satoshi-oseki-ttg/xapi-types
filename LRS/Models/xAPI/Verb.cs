@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.Serialization;
 using bracken_lrs.DictionaryExtensions;
 using Newtonsoft.Json;
 
@@ -18,6 +19,24 @@ namespace bracken_lrs.Models.xAPI
                 value.CheckLanguageCodes();
 
                 display = value;
+            }
+        }
+
+        [OnDeserialized]
+        internal void OnDeserializedMethod(StreamingContext context)
+        {
+            if (Id == null)
+            {
+                throw new Exception("Verb must have its id.");
+            }
+
+            try
+            {
+                new Uri(Id.ToString());
+            }
+            catch (Exception)
+            {
+                throw new Exception("Verb id must be valid IRI.");
             }
         }
     }

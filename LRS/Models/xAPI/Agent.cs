@@ -1,5 +1,7 @@
 ﻿using System;
 using MongoDB.Bson.Serialization.Attributes;
+using Newtonsoft.Json;
+using bracken_lrs.Models.Json;
 
 namespace bracken_lrs.Models.xAPI
 {
@@ -7,17 +9,19 @@ namespace bracken_lrs.Models.xAPI
     public class Agent : IStatementTarget, IEquatable<Agent>
     {
         public static readonly string OBJECT_TYPE = "Agent";
-        protected string objectType; // SO: Added this field for deserialisation
+        protected string objectType;
         public virtual string ObjectType
         {
             get { return OBJECT_TYPE; }
             set { objectType = value; }
         }
-
+        [JsonConverter(typeof(StrictNumberToStringConverter))]
         public string Name { get; set; }
         public string Mbox { get; set; }
+        [JsonProperty("mbox_sha1sum")]
         public string MboxSha1Sum { get; set; }
-        public string Openid { get; set; }
+        [JsonProperty("openid")]
+        public string OpenId { get; set; }
         public AgentAccount Account { get; set; }
 
         public bool Equals(Agent other)

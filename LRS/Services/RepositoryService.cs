@@ -14,6 +14,7 @@ using bracken_lrs.Models.xAPI;
 using MongoDB.Bson.Serialization.Conventions;
 using bracken_lrs.Models.xAPI.Documents;
 using Newtonsoft.Json;
+using bracken_lrs.Models.Json;
 
 namespace bracken_lrs.Services
 {
@@ -26,10 +27,12 @@ namespace bracken_lrs.Services
         private const string dbName = "lrs_dev"; // This should be per site and each site has collections, states, statements etc?
         private const string statementCollection = "statements";
         private const string stateCollection = "states";
+        private readonly IxApiValidationService _xApiValidationService;
 
-        public RepositoryService(IOptions<AppSettings> optionsAccessor)
+        public RepositoryService(IOptions<AppSettings> optionsAccessor, IxApiValidationService xApiValidationService)
         {
             _appSettings = optionsAccessor.Value;
+            _xApiValidationService = xApiValidationService;
             
             MongoDefaults.GuidRepresentation = MongoDB.Bson.GuidRepresentation.Standard;
 
@@ -52,10 +55,17 @@ namespace bracken_lrs.Services
         
         public async Task<string[]> SaveStatement(string json, Guid? statementId, string lrsUrl, string userName)
         {
-            var statement = JsonConvert.DeserializeObject<Statement>(json);
+            var statement = JsonConvert.DeserializeObject<Statement>
+            (
+                json,
+                new JsonSerializerSettings
+                {
+                    ContractResolver = new xApiValidationResolver(_xApiValidationService)
+                }
+            );
             if (await IsVoided(statement.Id))
             {
-                throw new Exception("Statement has been voided.");
+                //?? throw new Exception("Statement has been voided.");
             }
 
             ValidateStatement(statement);
@@ -87,13 +97,15 @@ namespace bracken_lrs.Services
             return new [] { statement.Id.ToString() };
         }
 
-        private void ValidateStatement(Statement value)
+        private void ValidateStatement(Statement statement)
         {
-            if (value.Verb.Id == new Uri("http://adlnet.gov/expapi/verbs/voided")
-                && value.Target as StatementRef == null)
+            if (statement.Verb.Id == new Uri("http://adlnet.gov/expapi/verbs/voided")
+                && statement.Target as StatementRef == null)
             {
                 throw new Exception("StatementRef isn't set for verb 'voided'.");
             }
+
+            _xApiValidationService.ValidateVerb(statement.Verb);
         }
 
         public async Task<Statement> GetStatement(Guid? id, bool toGetVoided = false)

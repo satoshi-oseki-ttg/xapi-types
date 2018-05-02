@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace bracken_lrs.Models.xAPI
@@ -8,5 +9,21 @@ namespace bracken_lrs.Models.xAPI
     {
         public static readonly String OBJECT_TYPE = "SubStatement";
         public String ObjectType { get { return OBJECT_TYPE; } }
+
+        [OnDeserializing]
+        private void OnDeserializing(StreamingContext context)
+        {
+
+        }
+
+        // Validation
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            if (Target.ObjectType == OBJECT_TYPE) // Nested sub-statement not allowed
+            {
+                throw new Exception("A Sub-Statement cannot have a Sub-Statement");
+            }
+        }
     }
 }

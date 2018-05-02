@@ -12,7 +12,9 @@ namespace bracken_lrs.Models.xAPI
     public class Context
     {
         public Guid? Registration { get; set; }
+        [JsonConverter(typeof(AgentGroupConverter))]
         public Agent Instructor { get; set; }
+        [JsonConverter(typeof(AgentGroupConverter))]
         public Agent Team { get; set; }
         public ContextActivities ContextActivities { get; set; }
         public string Revision { get; set; }

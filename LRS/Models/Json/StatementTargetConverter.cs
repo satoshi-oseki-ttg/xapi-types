@@ -1,6 +1,8 @@
 
 using System;
+using System.Net.Mail;
 using bracken_lrs.Models.xAPI;
+using bracken_lrs.Services;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -15,6 +17,9 @@ namespace bracken_lrs.Models.Json
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
+            var jsonContract = serializer.ContractResolver as xApiValidationResolver;
+            var xApiValidationService = jsonContract.XApiValidationService;
+
             if (reader.TokenType == JsonToken.Null)
             {
                 return null;
@@ -25,14 +30,14 @@ namespace bracken_lrs.Models.Json
                 
                 if (jobj["objectType"] == null)
                 {
-                    return null;
+                    throw new Exception("Statement target must specify its objectType.");
                 }
    
                 var type = (string)jobj["objectType"];
 
                 try
                 {
-                    return GetStatementTarget(jobj, type);
+                    return GetStatementTarget(jobj, type, xApiValidationService);
                 }
                 catch (Exception e)
                 {
@@ -41,17 +46,19 @@ namespace bracken_lrs.Models.Json
             }
         }
 
-        private IStatementTarget GetStatementTarget(JObject jObject, string type)
+        private IStatementTarget GetStatementTarget(JObject jObject, string type, IxApiValidationService xApiValidationService)
         {
             IStatementTarget target = null;
 
             if (type == Group.OBJECT_TYPE)
             {
                 target = jObject.ToObject<Group>();
+                xApiValidationService.ValidateGroup(target as Group);
             }
             else if (type == Agent.OBJECT_TYPE)
             {
                 target = jObject.ToObject<Agent>();
+                xApiValidationService.ValidateAgent(target as Agent);
             }
             else if (type == Activity.OBJECT_TYPE)
             {
@@ -63,7 +70,30 @@ namespace bracken_lrs.Models.Json
             }
             else if (type == SubStatement.OBJECT_TYPE)
             {
-                target = jObject.ToObject<SubStatement>();
+                if (jObject["id"] != null)
+                {
+                    throw new Exception("A Sub-statement can't have property id.");
+                }
+
+                if (jObject["version"] != null)
+                {
+                    throw new Exception("A Sub-statement can't have property version.");
+                }
+
+                if (jObject["authority"] != null)
+                {
+                    throw new Exception("A Sub-statement can't have property authority.");
+                }
+                
+                //target = jObject.ToObject<SubStatement>();
+                target = JsonConvert.DeserializeObject<SubStatement>
+                (
+                    jObject.ToString(),
+                    new JsonSerializerSettings
+                    {
+                        ContractResolver = new xApiValidationResolver(xApiValidationService)
+                    }
+                );
             }
 
             if (target == null)

@@ -49,11 +49,12 @@ namespace bracken_lrs
             services.AddSingleton<IVmProgressService, VmProgressService>();
             services.AddSingleton<IRepositoryService, RepositoryService>();
             services.AddSingleton<ViewUpdateHub>();
+            services.AddSingleton<IxApiValidationService, xApiValidationService>();
 
             services.AddSignalR();
 
             // Add Hangfire services. 
-            services.AddHangfire(x => x.UseSqlServerStorage(Configuration.GetConnectionString("HangfireDbConnection"))); 
+            services.AddHangfire(x => x.UseSqlServerStorage(Configuration.GetConnectionString("HangfireDbConnection")));
 
             services.AddMvc
             (
@@ -65,8 +66,7 @@ namespace bracken_lrs
                 {
                     options.SerializerSettings.Converters.Add(new PropertyNameConverter());
                     options.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore;
-                    //options.SerializerSettings.TypeNameHandling = Newtonsoft.Json.TypeNameHandling.All;
-                    
+                    options.SerializerSettings.ContractResolver = new xApiValidationResolver(new xApiValidationService());
                 });
         }
 

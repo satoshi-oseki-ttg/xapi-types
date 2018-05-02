@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using bracken_lrs.DictionaryExtensions;
 using bracken_lrs.Models.Json;
 using MongoDB.Bson;
@@ -57,13 +58,70 @@ namespace bracken_lrs.Models.xAPI
                 interactionType = value;
             }
         }
-        public string[] CorrectResponsesPattern;
-        //public InteractionType interactionType { get; set; }
-        //public List<String> correctResponsesPattern { get; set; }
+        public List<string> CorrectResponsesPattern { get; set; }
         public List<InteractionComponent> Choices { get; set; }
+        [JsonProperty("fill-in")]
+        public List<InteractionComponent> FillIn { get; set; }        
         public List<InteractionComponent> Scale { get; set; }
+        [JsonProperty("long-fill-in")]
+        public List<InteractionComponent> LongFillIn { get; set; }        
         public List<InteractionComponent> Source { get; set; }
         public List<InteractionComponent> Target { get; set; }
+        public List<InteractionComponent> Numeric { get; set; }
+        public List<InteractionComponent> Other { get; set; }
+        public List<InteractionComponent> Performance { get; set; }
+        public List<InteractionComponent> Sequencing { get; set; }
+        [JsonProperty("true-false")]
+        public List<InteractionComponent> TrueFalse { get; set; }
         public List<InteractionComponent> Steps { get; set; }
+
+        // Validation
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            if (Type != null)
+            {
+                try
+                {
+                    new Uri(Type.ToString());
+                }
+                catch (Exception)
+                {
+                    throw new Exception("Activity type isn't a valid IRI.");
+                }
+            }
+
+            if (MoreInfo != null)
+            {
+                try
+                {
+                    new Uri(MoreInfo.ToString());
+                }
+                catch (Exception)
+                {
+                    throw new Exception("Activity moreInfo isn't a valid IRI.");
+                }
+            }
+
+            if (CorrectResponsesPattern != null
+                || Choices != null
+                || FillIn != null
+                || Scale != null
+                || LongFillIn != null
+                || Source != null
+                || Target != null
+                || Numeric != null
+                || Other != null
+                || Performance != null
+                || Sequencing != null
+                || TrueFalse != null
+                || Steps != null)
+            {
+                if (InteractionType == null)
+                {
+                    throw new Exception("InteractionType isn't set when interaction component is expected.");
+                }
+            }
+        }
     }
 }

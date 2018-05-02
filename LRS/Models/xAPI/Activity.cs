@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.Serialization;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
@@ -19,5 +20,23 @@ namespace bracken_lrs.Models.xAPI
         public Uri Id { get; set; }
 
         public ActivityDefinition Definition { get; set; }
+
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            if (Id == null)
+            {
+                throw new Exception("Activity id isn't provided.");
+            }
+
+            try
+            {
+                new Uri(Id.ToString());
+            }
+            catch (Exception)
+            {
+                throw new Exception("Activity id isn't a valid IRI.");
+            }
+        }
     }
 }

@@ -11,6 +11,7 @@ namespace bracken_lrs.Models.xAPI
     {
         private const String ISODateTimeFormat = "o";
         [JsonProperty(Required = Required.Always)]
+        [JsonConverter(typeof(AgentGroupConverter))]
         public Agent Actor { get; set; }
         [JsonProperty(Required = Required.Always)]
         public Verb Verb { get; set; }

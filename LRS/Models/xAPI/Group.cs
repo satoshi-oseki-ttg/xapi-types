@@ -11,8 +11,8 @@ namespace bracken_lrs.Models.xAPI
         public override string ObjectType
         {
             get { return OBJECT_TYPE; }
-            set { objectType = value; } }
-
-        public List<Agent> member { get; set; }
+            set { objectType = value; }
+        }
+        public List<Agent> Member { get; set; }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using bracken_lrs.Models.Json;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using Newtonsoft.Json;
@@ -15,6 +16,7 @@ namespace bracken_lrs.Models.xAPI
         [BsonElement("id")]
         public Guid Id { get; set; }
         public DateTime Stored { get; set; }
+        [JsonConverter(typeof(AgentGroupConverter))]
         public Agent Authority { get; set; }
         // public TCAPIVersion version { get; set; } // TODO: include this
     }

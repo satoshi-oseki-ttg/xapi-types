@@ -17,9 +17,6 @@ namespace bracken_lrs.Models.Json
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            var jsonContract = serializer.ContractResolver as xApiValidationResolver;
-            var xApiValidationService = jsonContract.XApiValidationService;
-            
             if (reader.TokenType == JsonToken.Null)
             {
                 return null;
@@ -37,7 +34,7 @@ namespace bracken_lrs.Models.Json
 
                 try
                 {
-                    return GetAgentOrGroup(jobj, type, xApiValidationService);
+                    return GetAgentOrGroup(jobj, type);
                 }
                 catch (Exception e)
                 {
@@ -46,19 +43,17 @@ namespace bracken_lrs.Models.Json
             }
         }
 
-        private Agent GetAgentOrGroup(JObject jObject, string type, IxApiValidationService xApiValidationService)
+        private Agent GetAgentOrGroup(JObject jObject, string type)
         {
             Agent result = null;
 
             if (type == Group.OBJECT_TYPE)
             {
                 result = jObject.ToObject<Group>();
-                xApiValidationService.ValidateGroup(result as Group);
             }
             else if (type == Agent.OBJECT_TYPE)
             {
                 result = jObject.ToObject<Agent>();
-                xApiValidationService.ValidateAgent(result);
             }
 
             if (result == null)

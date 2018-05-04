@@ -68,7 +68,7 @@ namespace bracken_lrs.Controllers
             {
                 var userName = User.Identity.Name;
                 var lrsUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.Value}";
-                return Ok(await _repositoryService.SaveStatement(obj.ToString(), null, lrsUrl, userName));
+                return Ok(await _repositoryService.SaveStatement(obj, null, lrsUrl, userName));
             }
             catch (Exception e)
             {

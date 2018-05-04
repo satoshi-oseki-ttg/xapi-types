@@ -53,27 +53,11 @@ namespace bracken_lrs.Services
             _db = _client.GetDatabase(dbName);
          }
         
-        public async Task<string[]> SaveStatement(string json, Guid? statementId, string lrsUrl, string userName)
+        public async Task<string[]> SaveStatement(JObject jObject, Guid? statementId, string lrsUrl, string userName)
         {
-            var statement = JsonConvert.DeserializeObject<Statement>
-            (
-                json,
-                new JsonSerializerSettings
-                {
-                    ContractResolver = new xApiValidationResolver(_xApiValidationService)
-                }
-            );
-            if (await IsVoided(statement.Id))
-            {
-                //?? throw new Exception("Statement has been voided.");
-            }
+            _xApiValidationService.ValidateStatement(jObject);
 
-            ValidateStatement(statement);
-
-            if (statement == null)
-            {
-                throw new Exception("Failed to deserialise Statement object.");
-            }
+            var statement = JsonConvert.DeserializeObject<Statement>(jObject.ToString());
 
             if (statementId == null && (statement.Id == null || statement.Id == Guid.Empty))
             {
@@ -94,7 +78,7 @@ namespace bracken_lrs.Services
             await _db.GetCollection<Statement>(statementCollection)
                 .InsertOneAsync(statement);
             
-            return new [] { statement.Id.ToString() };
+            return await Task.FromResult(new [] { statement.Id.ToString() });
         }
 
         private void ValidateStatement(Statement statement)

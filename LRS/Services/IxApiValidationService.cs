@@ -7,6 +7,7 @@ namespace bracken_lrs.Services
 {
     public interface IxApiValidationService
     {
+        void ValidateStatement(JObject statement);
         void ValidateAgent(Agent agent);
         void ValidateGroup(Group group);
         void ValidateVerb(Verb verb);

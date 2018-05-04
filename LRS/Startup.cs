@@ -20,6 +20,7 @@ using Newtonsoft.Json;
 using bracken_lrs.Models.Json;
 using MongoDB.Bson;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Newtonsoft.Json.Schema;
 
 namespace bracken_lrs
 {
@@ -64,9 +65,8 @@ namespace bracken_lrs
             )
                 .AddJsonOptions(options =>
                 {
-                    options.SerializerSettings.Converters.Add(new PropertyNameConverter());
                     options.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore;
-                    options.SerializerSettings.ContractResolver = new xApiValidationResolver(new xApiValidationService());
+                    options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
                 });
         }
 
@@ -77,7 +77,7 @@ namespace bracken_lrs
             {
                 app.UseDeveloperExceptionPage();
             }
-            
+
             var options = new BackgroundJobServerOptions
             {
                 Queues = new[] { "states", "statements", "default" }
@@ -132,6 +132,14 @@ namespace bracken_lrs
             app.UseMiddleware<AuthenticationMiddleware>();
 
             app.UseMvc();
+
+            RegisterJsonNetSchemaLicence();
+        }
+
+        private void RegisterJsonNetSchemaLicence()
+        {
+            string licenseKey = "3654-JivKKvJUxsFIMDlmPva2q8Y7iYGVhTVOYT4/hv2HY3BQDYUN4fCnEdTRjXgm36sIrH4k2ItvjdgVXP5PME3jtkDSZ7yQzzFaJdhdoT7U3gbmDXsgPVEu8pO433x7sluOaRycczvOhST7dfsdqfjxWrLUIPBxZ3Z5hL2SwHWA+Zx7IklkIjozNjU0LCJFeHBpcnlEYXRlIjoiMjAxOS0wNS0wNFQyMTozNToxMC44Mjg2ODI0WiIsIlR5cGUiOiJKc29uU2NoZW1hQnVzaW5lc3MifQ==";
+            License.RegisterLicense(licenseKey);
         }
     }
 }

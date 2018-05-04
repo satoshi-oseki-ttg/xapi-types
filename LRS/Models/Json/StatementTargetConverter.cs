@@ -1,4 +1,3 @@
-
 using System;
 using System.Net.Mail;
 using bracken_lrs.Models.xAPI;
@@ -17,9 +16,6 @@ namespace bracken_lrs.Models.Json
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            var jsonContract = serializer.ContractResolver as xApiValidationResolver;
-            var xApiValidationService = jsonContract.XApiValidationService;
-
             if (reader.TokenType == JsonToken.Null)
             {
                 return null;
@@ -37,7 +33,7 @@ namespace bracken_lrs.Models.Json
 
                 try
                 {
-                    return GetStatementTarget(jobj, type, xApiValidationService);
+                    return GetStatementTarget(jobj, type);
                 }
                 catch (Exception e)
                 {
@@ -46,19 +42,17 @@ namespace bracken_lrs.Models.Json
             }
         }
 
-        private IStatementTarget GetStatementTarget(JObject jObject, string type, IxApiValidationService xApiValidationService)
+        private IStatementTarget GetStatementTarget(JObject jObject, string type)
         {
             IStatementTarget target = null;
 
             if (type == Group.OBJECT_TYPE)
             {
                 target = jObject.ToObject<Group>();
-                xApiValidationService.ValidateGroup(target as Group);
             }
             else if (type == Agent.OBJECT_TYPE)
             {
                 target = jObject.ToObject<Agent>();
-                xApiValidationService.ValidateAgent(target as Agent);
             }
             else if (type == Activity.OBJECT_TYPE)
             {
@@ -69,31 +63,8 @@ namespace bracken_lrs.Models.Json
                 target = jObject.ToObject<StatementRef>();
             }
             else if (type == SubStatement.OBJECT_TYPE)
-            {
-                if (jObject["id"] != null)
-                {
-                    throw new Exception("A Sub-statement can't have property id.");
-                }
-
-                if (jObject["version"] != null)
-                {
-                    throw new Exception("A Sub-statement can't have property version.");
-                }
-
-                if (jObject["authority"] != null)
-                {
-                    throw new Exception("A Sub-statement can't have property authority.");
-                }
-                
-                //target = jObject.ToObject<SubStatement>();
-                target = JsonConvert.DeserializeObject<SubStatement>
-                (
-                    jObject.ToString(),
-                    new JsonSerializerSettings
-                    {
-                        ContractResolver = new xApiValidationResolver(xApiValidationService)
-                    }
-                );
+            {                
+                target = jObject.ToObject<SubStatement>();
             }
 
             if (target == null)

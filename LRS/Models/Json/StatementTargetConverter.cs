@@ -22,13 +22,7 @@ namespace bracken_lrs.Models.Json
             } 
             else
             {
-                var jobj = JObject.Load(reader);
-                
-                if (jobj["objectType"] == null)
-                {
-                    throw new Exception("Statement target must specify its objectType.");
-                }
-   
+                var jobj = JObject.Load(reader);   
                 var type = (string)jobj["objectType"];
 
                 try
@@ -45,6 +39,14 @@ namespace bracken_lrs.Models.Json
         private IStatementTarget GetStatementTarget(JObject jObject, string type)
         {
             IStatementTarget target = null;
+
+            // 2.4.4 Object
+            // Objects which are provided as a value for this property SHOULD include an "objectType" property.
+            // If not specified, the objectType is assumed to be Activity.
+            if (type == null)
+            {
+                type = Activity.OBJECT_TYPE;
+            }
 
             if (type == Group.OBJECT_TYPE)
             {
@@ -65,11 +67,6 @@ namespace bracken_lrs.Models.Json
             else if (type == SubStatement.OBJECT_TYPE)
             {                
                 target = jObject.ToObject<SubStatement>();
-            }
-
-            if (target == null)
-            {
-                throw new JsonSerializationException($"Type {type} is not valid.");
             }
 
             return target;

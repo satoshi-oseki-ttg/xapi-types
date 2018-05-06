@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using bracken_lrs.Models.Json;
 using MongoDB.Bson.Serialization.Attributes;
 using Newtonsoft.Json;
@@ -23,5 +24,18 @@ namespace bracken_lrs.Models.xAPI
         public Context Context { get; set; }
         public DateTime? Timestamp { get; set; }
         public List<Attachment> Attachments { get; set; }
+        public string Version { get; set; }
+
+        // Validation
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            // This can't be checked in JSON schema at the moment.
+            if (Verb.Id == new Uri("http://adlnet.gov/expapi/verbs/voided")
+                && Target.ObjectType != StatementRef.OBJECT_TYPE)
+            {
+                throw new Exception("Statement verb voided must use object StatementRef");
+            }
+        }
     }
 }

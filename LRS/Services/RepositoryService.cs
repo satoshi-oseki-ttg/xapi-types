@@ -52,19 +52,49 @@ namespace bracken_lrs.Services
 
             _db = _client.GetDatabase(dbName);
          }
+
+        public async Task<string[]> SaveStatements(object obj, Guid? statementId, string lrsUrl, string userName)
+        {
+            JArray jObjects = new JArray();
+            if (obj as JObject != null)
+            {
+                jObjects.Add(obj);
+            }
+            if (obj as JArray != null)
+            {
+                jObjects = obj as JArray;
+            }
+
+            var ids = new List<string>();
+            foreach (var jObject in jObjects)
+            {
+                var id = await SaveStatement(jObject as JObject, statementId, lrsUrl, userName);
+                ids.Add(id);
+            }
+
+            return ids.ToArray();
+        }
         
-        public async Task<string[]> SaveStatement(JObject jObject, Guid? statementId, string lrsUrl, string userName)
+        private async Task<string> SaveStatement(JObject jObject, Guid? statementId, string lrsUrl, string userName)
         {
             _xApiValidationService.ValidateStatement(jObject);
 
             var statement = JsonConvert.DeserializeObject<Statement>(jObject.ToString());
 
-            if (statementId == null && (statement.Id == null || statement.Id == Guid.Empty))
+            await ValidateStatement(statement);
+
+            if (statement.Id == null || statement.Id == Guid.Empty)
             {
-                statement.Id = Guid.NewGuid();
+                statement.Id = (statementId == null)
+                    ? Guid.NewGuid()
+                    : statementId.GetValueOrDefault();
             }
 
-            statement.Stored = DateTime.UtcNow;
+            if (statement.Stored != null)
+            {
+                statement.Stored = DateTime.UtcNow;
+            }
+
             if (statement.Timestamp == null)
             {
                 statement.Timestamp = statement.Stored;
@@ -78,23 +108,32 @@ namespace bracken_lrs.Services
             await _db.GetCollection<Statement>(statementCollection)
                 .InsertOneAsync(statement);
             
-            return await Task.FromResult(new [] { statement.Id.ToString() });
+            return await Task.FromResult(statement.Id.ToString());
         }
 
-        private void ValidateStatement(Statement statement)
+        private async Task ValidateStatement(Statement statement)
         {
-            if (statement.Verb.Id == new Uri("http://adlnet.gov/expapi/verbs/voided")
+            if (statement.Verb.Id == new Uri("http://adlnet.gov/expapi/verbs/voided") // this is done in StatementBase model
                 && statement.Target as StatementRef == null)
             {
                 throw new Exception("StatementRef isn't set for verb 'voided'.");
             }
 
-            _xApiValidationService.ValidateVerb(statement.Verb);
+            if (statement.Verb.Id == new Uri("http://adlnet.gov/expapi/verbs/voided"))
+            {
+                var beingVoided = ((StatementRef)statement.Target).Id;
+                if (await IsVoiding(beingVoided))
+                {
+                    throw new Exception("A Voiding Statement cannot Target another Voiding Statement.");
+                }
+            }
+
+            //?? _xApiValidationService.ValidateVerb(statement.Verb);
         }
 
         public async Task<Statement> GetStatement(Guid? id, bool toGetVoided = false)
         {
-            if (!toGetVoided && await IsVoided(id))
+            if (toGetVoided != await IsVoided(id))
             {
                 return null;
             }
@@ -123,7 +162,8 @@ namespace bracken_lrs.Services
                 var statements = statementsCursor.ToList();
                 foreach (var s in statements)
                 {
-                    if (s.Target as StatementRef != null
+                    if (s.Verb.Id == new Uri("http://adlnet.gov/expapi/verbs/voided")
+                        && s.Target as StatementRef != null
                         && ((StatementRef)s.Target).Id == id)
                     {
                         return true;
@@ -134,17 +174,39 @@ namespace bracken_lrs.Services
             return false;
         }
 
-        public async Task<IList<Statement>> GetStatements()
+        // A is a regular statement. B is voiding A. C is now voiding B.
+        // But C can't void B because B is voiding A. 
+        private async Task<bool> IsVoiding(Guid? id)
+        {
+            var collection = _db.GetCollection<Statement>(statementCollection);
+            if (collection == null)
+            {
+                return false;
+            }
+
+            using (var statementsCursor = await collection.FindAsync(x => x.Id == id))
+            {
+                var voiding = statementsCursor.FirstOrDefault();
+                return voiding?.Verb?.Id == new Uri("http://adlnet.gov/expapi/verbs/voided");
+            }
+        }
+
+        public StatementsResult GetStatements(int limit, DateTime since)
         {
             var collection = _db.GetCollection<Statement>(statementCollection);
             if (collection == null)
             {
                 return null;
             }
-            var cursor = await collection.FindAsync(new BsonDocument());
+            var cursor = collection.Find(new BsonDocument()).SortByDescending(x => x.Stored).Limit(limit);
             var statements = cursor.ToList();
+            if (since != null)
+            {
+                var sinceUtc = since.ToUniversalTime();
+                statements = statements.Where(x => x.Stored >= sinceUtc).ToList();
+            }
 
-            return statements;
+            return new StatementsResult(statements);
         }
 
         private async Task<bool> IsTargetVoided(Statement statement)

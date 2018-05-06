@@ -34,14 +34,26 @@ namespace bracken_lrs.Controllers
         }
 
         [HttpGet("statements")]
-        public async Task<IActionResult> GetStatement([FromQuery]Guid statementId, [FromQuery]Guid voidedStatementId)
+        public async Task<IActionResult> GetStatement
+        (
+            [FromQuery] Guid statementId,
+            [FromQuery] Guid voidedStatementId,
+            [FromQuery] int limit,
+            [FromQuery] DateTime since
+        )
         {
             Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
 
-            var noParams = statementId == Guid.Empty && voidedStatementId == Guid.Empty;
-            if (noParams)
+            var noIds = statementId == Guid.Empty && voidedStatementId == Guid.Empty;
+            if (noIds)
             {
-                return Ok(_repositoryService.GetStatements());
+                var result = _repositoryService.GetStatements(limit, since);
+                if (limit > 0 || since != null)
+                {
+                    var lastStatementStored = result.Statements.First().Stored.ToString("o");
+                    result.More = $"/tcapi/statements?since={lastStatementStored}";
+                }
+                return Ok(result);
             }
             
             var id = voidedStatementId == Guid.Empty ? statementId : voidedStatementId;
@@ -57,18 +69,19 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [HttpPost("statements")]
-        public async Task<IActionResult> PostStatement([FromBody]JObject obj)
+        public async Task<IActionResult> PostStatement([FromBody]object obj)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
-            
+
             try
             {
                 var userName = User.Identity.Name;
                 var lrsUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.Value}";
-                return Ok(await _repositoryService.SaveStatement(obj, null, lrsUrl, userName));
+
+                return Ok(await _repositoryService.SaveStatements(obj, null, lrsUrl, userName));
             }
             catch (Exception e)
             {
@@ -76,32 +89,38 @@ namespace bracken_lrs.Controllers
             }
         }
 
-
-
-        // [ProducesResponseType(204)]
-        // [HttpPut("statements")]
-        // public async Task PutStatement([FromBody]Statement value, [FromQuery]Guid statementId, [FromQuery]Guid publishedResultID)
-        // {
-        //     var userName = User.Identity.Name;
-        //     var lrsUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.Value}";
-        //     await _repositoryService.SaveStatement(value, null, lrsUrl, userName);
-        //     // var json = value.ToString();
-        //     // //_xApiService.SaveStatement(value, statementId);
-        //     // _jobQueueService.EnqueueStatement(value);
-        //     // var verb = value["verb"];
-        //     // var verbId = verb["id"];
-        //     // //var statement = new Statement(value);
-        //     // //if (statement.verb.Id == completed)
-        //     // if (verbId.Value<string>() == completed.ToString())
-        //     // {
-        //     //     var url = $"http://live.brackenlearning.com.satoshi.work/statements?statementId={statementId}&publishedResultID={publishedResultID}";
-        //     //     var content = new StringContent(JsonConvert.SerializeObject(value), Encoding.UTF8, "application/json");
-        //     //     httpClient.DefaultRequestHeaders.Authorization =
-        //     //         new AuthenticationHeaderValue("Basic", Convert.ToBase64String(
-        //     //             System.Text.ASCIIEncoding.ASCII.GetBytes("bracken:welcome123")));
-        //     //     httpClient.PutAsync(url, content);
-        //     // }
-        // }
+        [ProducesResponseType(204)]
+        [HttpPut("statements")]
+        public async Task<IActionResult> PutStatement([FromBody]object obj, [FromQuery]Guid statementId, [FromQuery]Guid publishedResultID)
+        {
+            try
+            {
+                var userName = User.Identity.Name;
+                var lrsUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.Value}";
+                await _repositoryService.SaveStatements(obj, statementId, lrsUrl, userName);
+                return NoContent();
+            }
+            catch (Exception e)
+            {
+                return await Task.FromResult(BadRequest(e));
+            }
+            // var json = value.ToString();
+            // //_xApiService.SaveStatement(value, statementId);
+            // _jobQueueService.EnqueueStatement(value);
+            // var verb = value["verb"];
+            // var verbId = verb["id"];
+            // //var statement = new Statement(value);
+            // //if (statement.verb.Id == completed)
+            // if (verbId.Value<string>() == completed.ToString())
+            // {
+            //     var url = $"http://live.brackenlearning.com.satoshi.work/statements?statementId={statementId}&publishedResultID={publishedResultID}";
+            //     var content = new StringContent(JsonConvert.SerializeObject(value), Encoding.UTF8, "application/json");
+            //     httpClient.DefaultRequestHeaders.Authorization =
+            //         new AuthenticationHeaderValue("Basic", Convert.ToBase64String(
+            //             System.Text.ASCIIEncoding.ASCII.GetBytes("bracken:welcome123")));
+            //     httpClient.PutAsync(url, content);
+            // }
+        }
 
         [HttpPut("activities/state")]
         public async Task PutState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent, [FromQuery]Guid publishedResultID)

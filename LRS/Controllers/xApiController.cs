@@ -39,12 +39,15 @@ namespace bracken_lrs.Controllers
             [FromQuery] Guid statementId,
             [FromQuery] Guid voidedStatementId,
             [FromQuery] int limit,
-            [FromQuery] DateTime since
+            [FromQuery] DateTime since,
+            [FromQuery] Uri verb
         )
         {
             Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
 
-            var noIds = statementId == Guid.Empty && voidedStatementId == Guid.Empty;
+            var noIds = statementId == Guid.Empty
+                && voidedStatementId == Guid.Empty
+                && verb == null;
             if (noIds)
             {
                 var result = _repositoryService.GetStatements(limit, since);
@@ -56,6 +59,12 @@ namespace bracken_lrs.Controllers
                 return Ok(result);
             }
             
+            if (verb != null)
+            {
+                var result = _repositoryService.GetStatements(verb);
+                return Ok(result);
+            }
+
             var id = voidedStatementId == Guid.Empty ? statementId : voidedStatementId;
             var statement = await _repositoryService.GetStatement(id, voidedStatementId != Guid.Empty);
             if (statement == null)

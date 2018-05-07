@@ -209,6 +209,19 @@ namespace bracken_lrs.Services
             return new StatementsResult(statements);
         }
 
+        public StatementsResult GetStatements(Uri verbId)
+        {
+            var collection = _db.GetCollection<Statement>(statementCollection);
+            if (collection == null)
+            {
+                return null;
+            }
+            var cursor = collection.Find(x => x.Verb.Id == verbId);
+            var statements = cursor.ToList();
+
+            return new StatementsResult(statements);            
+        }
+
         private async Task<bool> IsTargetVoided(Statement statement)
         {
             var activity = statement.Target as Activity;

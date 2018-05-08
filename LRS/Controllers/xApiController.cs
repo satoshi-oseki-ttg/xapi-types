@@ -85,6 +85,20 @@ namespace bracken_lrs.Controllers
             return Ok(statement);
         }
 
+        [HttpHead("statements")]
+        [ProducesResponseType(200)]
+        public IActionResult HeadStatement()
+        {
+            return Ok();
+        }
+
+        [HttpHead("activities")]
+        [ProducesResponseType(200)]
+        public IActionResult HeadActivities()
+        {
+            return Ok();
+        }
+
         [Consumes("multipart/mixed")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]

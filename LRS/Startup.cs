@@ -67,6 +67,7 @@ namespace bracken_lrs
                 {
                     options.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore;
                     options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+                    options.SerializerSettings.DateParseHandling  = DateParseHandling.None; // A DateTime stays as string and is validated with the format schema.
                 });
         }
 

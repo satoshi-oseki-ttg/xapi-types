@@ -5,9 +5,12 @@
     "properties": {
         "name": {"type": "string"},
         "objectType": {"enum": ["Agent"]},
-        "mbox": {},
+        "mbox": {
+            "type": "string",
+            "format": "mailto-iri"
+        },
         "mbox_sha1sum": {},
-        "account": {},
+        "account": {"$ref": "#account!core"},
         "openid": {}
     },
     "additionalProperties": false

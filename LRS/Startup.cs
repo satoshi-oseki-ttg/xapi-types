@@ -51,6 +51,7 @@ namespace bracken_lrs
             services.AddSingleton<IRepositoryService, RepositoryService>();
             services.AddSingleton<ViewUpdateHub>();
             services.AddSingleton<IxApiValidationService, xApiValidationService>();
+            services.AddSingleton<ISignedStatementService, SignedStatementService>();
 
             services.AddSignalR();
 

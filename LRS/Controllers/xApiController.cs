@@ -12,6 +12,8 @@ using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using bracken_lrs.Models.xAPI;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace bracken_lrs.Controllers
 {
@@ -22,15 +24,23 @@ namespace bracken_lrs.Controllers
         private readonly IxApiService _xApiService;
         private readonly IJobQueueService _jobQueueService;
         private readonly IRepositoryService _repositoryService;
+        private readonly ISignedStatementService _signedStatementService;
         private static readonly Uri completed = new Uri("http://adlnet.gov/expapi/verbs/completed");
 
         private static readonly HttpClient httpClient = new HttpClient();
 
-        public xApiController(IxApiService xApiService, IJobQueueService jobQueueService, IRepositoryService repositoryService)
+        public xApiController
+        (
+            IxApiService xApiService,
+            IJobQueueService jobQueueService,
+            IRepositoryService repositoryService,
+            ISignedStatementService signedStatementService
+        )
         {
             _xApiService = xApiService;
             _jobQueueService = jobQueueService;
             _repositoryService = repositoryService;
+            _signedStatementService = signedStatementService;
         }
 
         [HttpGet("statements")]
@@ -75,6 +85,27 @@ namespace bracken_lrs.Controllers
             return Ok(statement);
         }
 
+        [Consumes("multipart/mixed")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [HttpPost("statements")]
+        public async Task<IActionResult> PostSignedStatementAsync()
+        {
+            try
+            {
+                var statement = await _signedStatementService.GetSignedStatementAsync(Request.Body, Request.ContentType);
+                var userName = User.Identity.Name;
+                var lrsUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.Value}";
+
+                return Ok(await _repositoryService.SaveStatements(statement, null, lrsUrl, userName));
+            }
+            catch (Exception e)
+            {
+                return await Task.FromResult(BadRequest(e));
+            }
+        }
+
+        [Consumes("application/json")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [HttpPost("statements")]

@@ -15,6 +15,8 @@ using MongoDB.Bson.Serialization.Conventions;
 using bracken_lrs.Models.xAPI.Documents;
 using Newtonsoft.Json;
 using bracken_lrs.Models.Json;
+using System.IO;
+using System.Net.Http;
 
 namespace bracken_lrs.Services
 {
@@ -28,11 +30,18 @@ namespace bracken_lrs.Services
         private const string statementCollection = "statements";
         private const string stateCollection = "states";
         private readonly IxApiValidationService _xApiValidationService;
+        private readonly ISignedStatementService _signedStatementService;
 
-        public RepositoryService(IOptions<AppSettings> optionsAccessor, IxApiValidationService xApiValidationService)
+        public RepositoryService
+        (
+            IOptions<AppSettings> optionsAccessor,
+            IxApiValidationService xApiValidationService,
+            ISignedStatementService signedStatementService
+        )
         {
             _appSettings = optionsAccessor.Value;
             _xApiValidationService = xApiValidationService;
+            _signedStatementService = signedStatementService;
             
             MongoDefaults.GuidRepresentation = MongoDB.Bson.GuidRepresentation.Standard;
 
@@ -74,13 +83,23 @@ namespace bracken_lrs.Services
 
             return ids.ToArray();
         }
-        
+
+        public async Task<string[]> SaveStatement(Statement statement, Guid? statementId, string lrsUrl, string userName)
+        {
+            return new [] { await DoSaveStatement(statement, statementId, lrsUrl, userName) };
+        }
+
         private async Task<string> SaveStatement(JObject jObject, Guid? statementId, string lrsUrl, string userName)
         {
             _xApiValidationService.ValidateStatement(jObject);
 
             var statement = JsonConvert.DeserializeObject<Statement>(jObject.ToString());
 
+            return await DoSaveStatement(statement, statementId, lrsUrl, userName);
+        }
+
+        private async Task<string> DoSaveStatement(Statement statement, Guid? statementId, string lrsUrl, string userName)
+        {
             await ValidateStatement(statement);
 
             if (statement.Id == null || statement.Id == Guid.Empty)

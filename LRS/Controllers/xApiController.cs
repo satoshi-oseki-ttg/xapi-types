@@ -14,6 +14,9 @@ using Newtonsoft.Json.Linq;
 using bracken_lrs.Models.xAPI;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
+using System.Net;
+using System.Web;
+using bracken_lrs.Attributes;
 
 namespace bracken_lrs.Controllers
 {
@@ -26,8 +29,11 @@ namespace bracken_lrs.Controllers
         private readonly IRepositoryService _repositoryService;
         private readonly ISignedStatementService _signedStatementService;
         private static readonly Uri completed = new Uri("http://adlnet.gov/expapi/verbs/completed");
-
         private static readonly HttpClient httpClient = new HttpClient();
+        private readonly string[] alternateRequestHeaders = new []
+        {
+            "Authorization", "X-Experience-API-Version", "Content-Type", "Content-Length", "If-Match", "If-None-Match"
+        };
 
         public xApiController
         (
@@ -51,6 +57,18 @@ namespace bracken_lrs.Controllers
             [FromQuery] int limit,
             [FromQuery] DateTime since,
             [FromQuery] Uri verb
+        )
+        {
+            return await DoGetStatement(statementId, voidedStatementId, limit, since, verb);
+        }
+
+        private async Task<IActionResult> DoGetStatement
+        (
+            Guid statementId,
+            Guid voidedStatementId,
+            int limit,
+            DateTime since,
+            Uri verb
         )
         {
             Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
@@ -99,7 +117,8 @@ namespace bracken_lrs.Controllers
             return Ok();
         }
 
-        [Consumes("multipart/mixed")]
+        [Consumes("multipart/mixed", "multipart/form-data")]
+        [PostStatementAction]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [HttpPost("statements")]
@@ -119,7 +138,115 @@ namespace bracken_lrs.Controllers
             }
         }
 
+        [AllowAnonymous]
+        [PostStatementAction]
+        [Consumes("application/x-www-form-urlencoded")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [HttpPost("statements")]
+        public async Task<IActionResult> PostStatementWithHttpMethodAsync([FromForm]IFormCollection query, [FromQuery]string method)
+        {
+            if (Request.Query.Count != 1)
+            {
+                return BadRequest("An LRS will reject an alternate request syntax which contains any extra information with error code 400 Bad Request.");
+            }
+
+            if (method == "PUT" || method == "GET")
+            {
+                try
+                {
+                    var response = await ResendStatementRequest(Request, query, method);
+                    return response;
+                }
+                catch (Exception e)
+                {
+                    return BadRequest(e);
+                }
+            }
+
+            return BadRequest("An alternate request only supports GET and POST.");
+        }
+
+        private async Task<IActionResult> ResendStatementRequest(HttpRequest request, IFormCollection formData, string method)
+        {
+            // var statementId = new Guid(formData["statementId"]);
+            using (var client = new HttpClient())
+            {
+                var httpRequest = new HttpRequestMessage(new HttpMethod(method),
+                    AddQueryParamsToUri(new Uri($"{request.Scheme}://{request.Host}/tcapi/statements"), formData));
+                CopyAndAssignHeaders(request.Headers, httpRequest.Headers, formData);
+                if (formData.Keys.Contains("content"))
+                {
+                    httpRequest.Content = new StringContent(HttpUtility.UrlDecode(formData["content"]), Encoding.UTF8, "application/json");
+                }
+                var response = await client.SendAsync(httpRequest);
+                if (!response.IsSuccessStatusCode)
+                {
+                    return BadRequest();
+                }
+                return new ObjectResult(await response.Content.ReadAsStringAsync())
+                {
+                    StatusCode = (int?)response.StatusCode
+                };
+            }
+        }
+
+        private Uri AddQueryParamsToUri(Uri uri, IFormCollection formData)
+        {
+            var uriBuilder = new UriBuilder(uri);
+            var query = HttpUtility.ParseQueryString(uriBuilder.Query);
+            foreach (var param in formData)
+            {
+                if (Array.IndexOf(alternateRequestHeaders, param.Key) == -1
+                    && param.Key != "content")
+                {
+                    query[param.Key] = param.Value;
+                }
+            }
+            uriBuilder.Query = query.ToString();
+
+            return uriBuilder.Uri;
+        }
+
+        private void CopyAndAssignHeaders(IHeaderDictionary sourceHeaders, HttpRequestHeaders newHeaders, IFormCollection query)
+        {
+            foreach (var header in sourceHeaders)
+            {
+                if (!header.Key.StartsWith("Content-"))
+                {
+                    if (header.Key == "Authorization")
+                    {
+                        newHeaders.Authorization = AuthenticationHeaderValue.Parse(header.Value);
+                    }
+                    else
+                    {
+                        newHeaders.Add(header.Key, header.Value.ToString());
+                    }
+                }
+            }
+
+            foreach (var header in alternateRequestHeaders)
+            {
+                if (query.ContainsKey(header))
+                {
+                    if (newHeaders.Contains(header))
+                    {
+                        newHeaders.Remove(header);
+                    }
+                    if (header == "Authorization")
+                    {
+                        newHeaders.Authorization = AuthenticationHeaderValue.Parse(HttpUtility.UrlDecode((query[header])));
+                    }
+                    else
+                    {
+                        newHeaders.Add(header, query[header].ToString());
+                    }
+                }
+            }
+        }
+
         [Consumes("application/json")]
+        [PostStatementAction]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [HttpPost("statements")]
@@ -147,6 +274,11 @@ namespace bracken_lrs.Controllers
         [HttpPut("statements")]
         public async Task<IActionResult> PutStatement([FromBody]object obj, [FromQuery]Guid statementId, [FromQuery]Guid publishedResultID)
         {
+            if (statementId == Guid.Empty)
+            {
+                return await Task.FromResult(BadRequest("There's no statementId supplied in a PUT statement request."));
+            }
+
             try
             {
                 var userName = User.Identity.Name;
@@ -176,8 +308,43 @@ namespace bracken_lrs.Controllers
             // }
         }
 
+        [Consumes("application/x-www-form-urlencoded")]
+        [ProducesResponseType(204)]
+        [HttpPut("statements")]
+        public async Task<IActionResult> PutStatementWithHttpMethodAsync([FromForm]IFormCollection query, [FromQuery]string method)
+        {
+            if (method != null)
+            {
+                return await Task.FromResult(BadRequest("An LRS rejects an alternate request syntax not issued as a POST"));
+            }
+
+            return await Task.FromResult(NoContent());
+        }
+
+        [HttpHead("activities/state")]
+        public IActionResult HeadState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
+        {
+            return Ok();
+        }
+
+        [HttpPost("activities/state")]
+        public async Task<IActionResult> PostState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
+        {
+            using (var ms = new MemoryStream(2048))
+            {
+                Request.Body.CopyTo(ms);
+                var value = ms.ToArray();
+                var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
+                //_xApiService.SaveState(value, stateId, activityId, agent);
+                //_jobQueueService.EnqueueState(value, stateId, activityId, agent);
+                await _repositoryService.SaveState(value, stateId, activityId, agentObject);
+
+                return NoContent();
+            }
+        }
+
         [HttpPut("activities/state")]
-        public async Task PutState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent, [FromQuery]Guid publishedResultID)
+        public async Task PutState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
         {
             using (var ms = new MemoryStream(2048))
             {
@@ -197,25 +364,39 @@ namespace bracken_lrs.Controllers
             return await _repositoryService.GetState(stateId, activityId, agentObject);
         }
 
-        [ProducesResponseType(204)]
-        [HttpPut("statements2")]
-        public void PutStatement2([FromBody]Statement value, [FromQuery]Guid statementId, [FromQuery]Guid publishedResultID)
+        [ProducesResponseType(200)]
+        [HttpHead("activities/profile")]
+        public IActionResult HeadActivityProfile([FromQuery]Guid activityId)
         {
-            // var json = value.ToString();
-            // _xApiService.SaveStatement(value, statementId);
-            // var verb = value["verb"];
-            // var verbId = verb["id"];
-            // var statement = new Statement(value);
-            // //if (statement.verb.Id == completed)
-            // if (verbId.Value<string>() == completed.ToString())
-            // {
-            //     var url = $"http://live.brackenlearning.com.satoshi.work/statements?statementId={statementId}&publishedResultID={publishedResultID}";
-            //     var content = new StringContent(JsonConvert.SerializeObject(value), Encoding.UTF8, "application/json");
-            //     httpClient.DefaultRequestHeaders.Authorization =
-            //         new AuthenticationHeaderValue("Basic", Convert.ToBase64String(
-            //             System.Text.ASCIIEncoding.ASCII.GetBytes("bracken:welcome123")));
-            //     httpClient.PutAsync(url, content);
-            // }
+            return Ok();
+        }
+
+        [ProducesResponseType(204)]
+        [HttpPost("activities/profile")]
+        public IActionResult PostActivityProfile([FromBody]JObject jObject, [FromQuery]Guid activityId)
+        {
+            return NoContent();
+        }
+
+        [ProducesResponseType(200)]
+        [HttpHead("agents")]
+        public IActionResult HeadAgents([FromQuery]Guid agent)
+        {
+            return Ok();
+        }
+
+        [ProducesResponseType(200)]
+        [HttpHead("agents/profile")]
+        public IActionResult HeadAgentsProfile([FromQuery]Guid activityId)
+        {
+            return Ok();
+        }
+
+        [ProducesResponseType(204)]
+        [HttpPost("agents/profile")]
+        public IActionResult PostAgentsProfile([FromBody]JObject jObject, [FromQuery]Guid agent)
+        {
+            return NoContent();
         }
     }
 }

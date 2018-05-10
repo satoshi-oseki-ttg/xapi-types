@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using bracken_lrs.GraphQL.Services;
-using bracken_lrs.Security;
+using bracken_lrs.Middleware;
 using bracken_lrs.Services;
 using bracken_lrs.Settings;
 using Microsoft.AspNetCore.Builder;
@@ -58,6 +58,10 @@ namespace bracken_lrs
             // Add Hangfire services. 
             services.AddHangfire(x => x.UseSqlServerStorage(Configuration.GetConnectionString("HangfireDbConnection")));
 
+            services
+                .AddAuthentication("Basic")
+                .AddScheme<BasicAuthenticationOptions, BasicAuthenticationHandler>("Basic", null);
+
             services.AddMvc
             (
                 options =>
@@ -86,6 +90,7 @@ namespace bracken_lrs
             };
             app.UseHangfireDashboard();
             app.UseHangfireServer(options);
+            app.UseAuthentication();
 
 //             var webSocketOptions = new WebSocketOptions()
 //             {
@@ -131,7 +136,7 @@ namespace bracken_lrs
                 routes.MapHub<ViewUpdateHub>("viewupdate");
             });
 
-            app.UseMiddleware<AuthenticationMiddleware>();
+            app.UseMiddleware<HeaderValidationMiddleware>();
 
             app.UseMvc();
 

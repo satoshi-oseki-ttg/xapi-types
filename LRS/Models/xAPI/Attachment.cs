@@ -37,5 +37,6 @@ namespace bracken_lrs.Models.xAPI
         public string ContentType { get; set; }
         public long Length { get; set; }
         public string Sha2 { get; set; }
+        public Uri FileUrl { get; set; }
     }
 }

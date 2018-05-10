@@ -14,37 +14,91 @@ namespace bracken_lrs.Services
     {
         public async Task<Statement> GetSignedStatementAsync(Stream body, string contentType)
         {
-            var boundary = contentType.Substring(contentType.IndexOf("boundary=") + "boundary=".Length);
-            //var stream = await content.ReadAsStringAsync();
-            var reader = new MultipartReader(boundary, body);
-            MultipartSection section;
-            Statement signedStatement = null;
-            string jws = null;
-            while ((section = await reader.ReadNextSectionAsync()) != null)
+            // Keep body content here in case there are no boundaries - see the catch section below.
+            string bodyContent = "";
+            using (var streamCopy = new MemoryStream())
             {
-                var sectionBody = await new StreamContent(section.Body).ReadAsStringAsync();
-                if (section.ContentType == "application/json")
+                body.CopyTo(streamCopy);
+                streamCopy.Position = 0; // rewind
+                bodyContent = await new StreamContent(streamCopy).ReadAsStringAsync();
+                streamCopy.Position = 0; // rewind again
+                body = streamCopy; 
+
+                var boundary = contentType.Substring(contentType.IndexOf("boundary=") + "boundary=".Length);
+                //var stream = await content.ReadAsStringAsync();
+                var reader = new MultipartReader(boundary, body);
+                MultipartSection section;
+                Statement signedStatement = null;
+                string jws = null;
+                bool isBinary = false;
+                bool hasStatement = false;
+                try
                 {
-                    signedStatement = JsonConvert.DeserializeObject<Statement>(sectionBody);
-                    if (signedStatement.Attachments[0].ContentType != "application/octet-stream")
+                    while ((section = await reader.ReadNextSectionAsync()) != null)
                     {
-                        throw new Exception("A signed statement with a malformed signature - bad content type");
+                        using (var streamContent = new StreamContent(section.Body))
+                        {
+                            var sectionBody = await streamContent.ReadAsStringAsync();
+                            if (section.ContentType == "application/json")
+                            {
+                                hasStatement = true;
+                                signedStatement = JsonConvert.DeserializeObject<Statement>(sectionBody);
+                                if (signedStatement.Attachments[0].ContentType.StartsWith("text/plain"))
+                                {
+                                    throw new Exception("A signed statement with a malformed signature - bad content type");
+                                }
+                            }
+
+                            if (section.Headers.ContainsKey("Content-Transfer-Encoding")
+                                && section.Headers["Content-Transfer-Encoding"] == "binary")
+                            {
+                                isBinary = true;
+
+                                if (contentType.StartsWith("multipart/form-data"))
+                                {
+                                    throw new Exception("A statement should fail when attachment is raw data and request content-type is multipart/form-data.");
+                                }
+                            }
+                            if (section.ContentType == "application/octet-stream")
+                            {
+                                jws = sectionBody; 
+                            }
+                        }
+                    }
+
+                    if (!hasStatement)
+                    {
+                        throw new Exception("There's no statement - possibly a boundary is missing.");
+                    }
+
+                    ValidateStatement(signedStatement, jws, isBinary);
+                }
+                catch (Exception e) // Possibly there's only one section without a boundary.
+                {
+                    signedStatement = JsonConvert.DeserializeObject<Statement>(bodyContent);
+                    if (signedStatement != null
+                        && contentType.StartsWith("multipart/form-data")
+                        && signedStatement.Attachments[0].FileUrl != null)
+                    {
+                        throw new Exception("A statement should fail when attachment uses fileUrl and request content-type is multipart/form-data.");
+                    }
+                    else
+                    {
+                        throw e;
                     }
                 }
 
-                if (section.ContentType == "application/octet-stream")
-                {
-                    jws = sectionBody; 
-                }
+                return signedStatement;
             }
-
-            ValidateStatement(signedStatement, jws);
-
-            return signedStatement;
         }
         
-        private void ValidateStatement(Statement statement, string jws)
+        private void ValidateStatement(Statement statement, string jws, bool isBinary)
         {
+            if (isBinary && jws == null)
+            {
+                return;
+            }
+
             string[] parts = jws.Split('.');
             string header = parts[0];
             string payload = parts[1];

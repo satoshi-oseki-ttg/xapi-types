@@ -157,7 +157,7 @@ namespace bracken_lrs.Services
             Guid? id,
             bool toGetVoided = false,
             IList<StringWithQualityHeaderValue> acceptLanguages = null,
-            bool isCanonical = false
+            string format = "exact"
         )
         {
             if (toGetVoided != await IsVoided(id))
@@ -174,7 +174,7 @@ namespace bracken_lrs.Services
             var statements = cursor.ToList();
 
             var filtered = FilterWithLanguage((statements.Count > 0) ? statements[0] : null, acceptLanguages);
-            if (isCanonical)
+            if (format == "canonical")
             {
                 filtered = GetCanonicalStatement(filtered);
             }
@@ -341,6 +341,108 @@ namespace bracken_lrs.Services
             };
         }
 
+        private Statement GetIdsOnly(Statement statement)
+        {
+            return new Statement
+            {
+                Id = statement.Id,
+                Actor = new Agent
+                {
+                    Mbox = statement.Actor.Mbox
+                },
+                Verb = new Verb
+                {
+                    Id = statement.Verb.Id
+                },
+                Target = GetIdsOnly(statement.Target),
+                Authority = new Agent
+                {
+                    Mbox = statement.Authority.Mbox
+                }
+            };
+        }
+
+        private IStatementTarget GetIdsOnly(IStatementTarget target)
+        {
+            if (target.ObjectType == Activity.OBJECT_TYPE)
+            {
+                return new Activity
+                {
+                    Id = ((Activity)target).Id
+                };
+            }
+            else if (target.ObjectType == Agent.OBJECT_TYPE)
+            {
+                return new Agent
+                {
+                    Mbox = ((Agent)target).Mbox
+                };
+            }
+            else if (target.ObjectType == Group.OBJECT_TYPE)
+            {
+                return new Group
+                {
+                    Mbox = ((Agent)target).Mbox,
+                    Member = GetGroupMemberIdsOnly(target as Group)
+                };
+            }
+            else if (target.ObjectType == StatementRef.OBJECT_TYPE)
+            {
+                return new StatementRef
+                {
+                    Id = ((StatementRef)target).Id
+                };
+            }
+            else if (target.ObjectType == SubStatement.OBJECT_TYPE)
+            {
+                return new SubStatement
+                {
+                    Actor = GetIdsOnly(((SubStatement)target).Actor),
+                    Verb = new Verb
+                    {
+                        Id = ((SubStatement)target).Verb.Id
+                    },
+                    Target = GetIdsOnly(((SubStatement)target).Target)
+                };
+            }
+
+            return null;
+        }
+
+        private Agent GetIdsOnly(Agent agent)
+        {
+            if (agent.ObjectType == Agent.OBJECT_TYPE)
+            {
+                return new Agent
+                {
+                    Mbox = ((Agent)agent).Mbox
+                };
+            }
+            else if (agent.ObjectType == Group.OBJECT_TYPE)
+            {
+                return new Group
+                {
+                    Mbox = ((Agent)agent).Mbox
+                };
+            }
+
+            return null;
+        }
+
+        private List<Agent> GetGroupMemberIdsOnly(Group group)
+        {
+            var members = new List<Agent>();
+            foreach(var agent in group.Member)
+            {
+                members.Add(new Agent
+                {
+                    Mbox = agent.Mbox
+                });
+            }
+
+            return members;
+        }
+
         private IList<Statement> GetCanonicalStatements(IList<Statement> statements)
         {
             var canonical = new List<Statement>();
@@ -353,7 +455,19 @@ namespace bracken_lrs.Services
             return canonical;
         }
 
-        public StatementsResult GetStatements(int limit, DateTime since, IList<StringWithQualityHeaderValue> acceptLanguages, bool isCanonical)
+        private IList<Statement> GetIdsOnly(IList<Statement> statements)
+        {
+            var canonical = new List<Statement>();
+
+            foreach (var statement in statements)
+            {
+                canonical.Add(GetIdsOnly(statement));
+            }
+
+            return canonical;
+        }
+
+        public StatementsResult GetStatements(int limit, DateTime since, IList<StringWithQualityHeaderValue> acceptLanguages, string format)
         {
             var collection = _db.GetCollection<Statement>(statementCollection);
             if (collection == null)
@@ -369,14 +483,19 @@ namespace bracken_lrs.Services
             }
 
             var filtered = FilterWithLanguage(statements, acceptLanguages);
-            if (isCanonical)
+            if (format == "canonical")
             {
                 filtered = GetCanonicalStatements(filtered);
             }
+            else if (format == "ids")
+            {
+                filtered = GetIdsOnly(filtered);
+            }
+
             return new StatementsResult(filtered);
         }
 
-        public StatementsResult GetStatements(Uri verbId, IList<StringWithQualityHeaderValue> acceptLanguages, bool isCanonical)
+        public StatementsResult GetStatements(Uri verbId, IList<StringWithQualityHeaderValue> acceptLanguages, string format)
         {
             var collection = _db.GetCollection<Statement>(statementCollection);
             if (collection == null)
@@ -387,7 +506,7 @@ namespace bracken_lrs.Services
             var statements = cursor.ToList();
 
             var filtered = FilterWithLanguage(statements, acceptLanguages);
-            if (isCanonical)
+            if (format == "canonical")
             {
                 filtered = GetCanonicalStatements(filtered);
             }

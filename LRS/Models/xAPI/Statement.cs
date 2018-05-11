@@ -10,6 +10,7 @@ namespace bracken_lrs.Models.xAPI
     public class Statement : StatementBase
     {
         [BsonId]
+        [JsonIgnore]
         public ObjectId _id { get; set; }
         // [JsonProperty("id", NamingStrategyType = typeof(DefaultNamingStrategy), NamingStrategyParameters = new object[] {true})]
         [JsonProperty("id")]

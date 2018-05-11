@@ -61,9 +61,8 @@ namespace bracken_lrs.Controllers
             [FromQuery] string format
         )
         {
-            var isCanonical = format == "canonical";
             var lang = Request.Headers["Accept-Language"];
-            var acceptLanguages = isCanonical
+            var acceptLanguages = format == "canonical"
                 ? Microsoft.Net.Http.Headers.StringWithQualityHeaderValue.ParseList(lang)
                 : null;
 
@@ -74,7 +73,7 @@ namespace bracken_lrs.Controllers
                 && verb == null;
             if (noIds)
             {
-                var result = _repositoryService.GetStatements(limit, since, acceptLanguages, isCanonical);
+                var result = _repositoryService.GetStatements(limit, since, acceptLanguages, format);
                 if (limit > 0 || since != null && since > DateTime.MinValue || attachments)
                 {
                     var lastStatementStored = result.Statements.First().Stored.ToString("o");
@@ -85,12 +84,12 @@ namespace bracken_lrs.Controllers
             
             if (verb != null)
             {
-                var result = _repositoryService.GetStatements(verb, acceptLanguages, isCanonical);
+                var result = _repositoryService.GetStatements(verb, acceptLanguages, format);
                 return Ok(result);
             }
 
             var id = voidedStatementId == Guid.Empty ? statementId : voidedStatementId;
-            var statement = await _repositoryService.GetStatement(id, voidedStatementId != Guid.Empty, acceptLanguages, isCanonical);
+            var statement = await _repositoryService.GetStatement(id, voidedStatementId != Guid.Empty, acceptLanguages, format);
             if (statement == null)
             {
                 return NotFound();

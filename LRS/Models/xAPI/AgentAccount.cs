@@ -7,6 +7,7 @@ namespace bracken_lrs.Models.xAPI
         public Uri HomePage { get; set; }
         public string Name { get; set; }
 
+        public AgentAccount() {}
         public AgentAccount(Uri homePage, string name)
         {
             HomePage = homePage;

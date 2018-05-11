@@ -22,6 +22,9 @@ namespace bracken_lrs.Models.xAPI
             }
         }
 
+        public StatementRef()
+        {
+        }
         public Guid? Id { get; set; }
 
         public StatementRef(Guid id)

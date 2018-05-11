@@ -2,6 +2,7 @@
 using System.Runtime.Serialization;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
+using Newtonsoft.Json;
 
 namespace bracken_lrs.Models.xAPI
 {
@@ -11,6 +12,7 @@ namespace bracken_lrs.Models.xAPI
         public static readonly string OBJECT_TYPE = "Activity";
 
         private string objectType;
+        [JsonIgnore]
         public string ObjectType
         {
             get { return OBJECT_TYPE; }

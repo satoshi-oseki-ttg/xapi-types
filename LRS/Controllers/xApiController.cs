@@ -56,21 +56,16 @@ namespace bracken_lrs.Controllers
             [FromQuery] Guid voidedStatementId,
             [FromQuery] int limit,
             [FromQuery] DateTime since,
-            [FromQuery] Uri verb
+            [FromQuery] Uri verb,
+            [FromQuery] bool attachments,
+            [FromQuery] string format
         )
         {
-            return await DoGetStatement(statementId, voidedStatementId, limit, since, verb);
-        }
+            var lang = Request.Headers["Accept-Language"];
+            var acceptLanguages = format == "canonical"
+                ? Microsoft.Net.Http.Headers.StringWithQualityHeaderValue.ParseList(lang)
+                : null;
 
-        private async Task<IActionResult> DoGetStatement
-        (
-            Guid statementId,
-            Guid voidedStatementId,
-            int limit,
-            DateTime since,
-            Uri verb
-        )
-        {
             Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
 
             var noIds = statementId == Guid.Empty
@@ -78,8 +73,8 @@ namespace bracken_lrs.Controllers
                 && verb == null;
             if (noIds)
             {
-                var result = _repositoryService.GetStatements(limit, since);
-                if (limit > 0 || since != null)
+                var result = _repositoryService.GetStatements(limit, since, acceptLanguages);
+                if (limit > 0 || since != null && since > DateTime.MinValue || attachments)
                 {
                     var lastStatementStored = result.Statements.First().Stored.ToString("o");
                     result.More = $"/tcapi/statements?since={lastStatementStored}";
@@ -89,12 +84,12 @@ namespace bracken_lrs.Controllers
             
             if (verb != null)
             {
-                var result = _repositoryService.GetStatements(verb);
+                var result = _repositoryService.GetStatements(verb, acceptLanguages);
                 return Ok(result);
             }
 
             var id = voidedStatementId == Guid.Empty ? statementId : voidedStatementId;
-            var statement = await _repositoryService.GetStatement(id, voidedStatementId != Guid.Empty);
+            var statement = await _repositoryService.GetStatement(id, voidedStatementId != Guid.Empty, acceptLanguages);
             if (statement == null)
             {
                 return NotFound();

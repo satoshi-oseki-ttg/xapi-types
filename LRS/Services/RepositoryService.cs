@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using bracken_lrs.Settings;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Microsoft.Net.Http.Headers;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
@@ -17,6 +18,7 @@ using Newtonsoft.Json;
 using bracken_lrs.Models.Json;
 using System.IO;
 using System.Net.Http;
+using bracken_lrs.DictionaryExtensions;
 
 namespace bracken_lrs.Services
 {
@@ -150,7 +152,7 @@ namespace bracken_lrs.Services
             //?? _xApiValidationService.ValidateVerb(statement.Verb);
         }
 
-        public async Task<Statement> GetStatement(Guid? id, bool toGetVoided = false)
+        public async Task<Statement> GetStatement(Guid? id, bool toGetVoided = false, IList<StringWithQualityHeaderValue> acceptLanguages = null)
         {
             if (toGetVoided != await IsVoided(id))
             {
@@ -165,7 +167,115 @@ namespace bracken_lrs.Services
             var cursor = await collection.FindAsync(x => x.Id == id);
             var statements = cursor.ToList();
 
-            return (statements.Count > 0) ? statements[0] : null;
+            return FilterWithLanguage((statements.Count > 0) ? statements[0] : null, acceptLanguages);
+        }
+
+        private IList<Statement> FilterWithLanguage(IList<Statement> statements, IList<StringWithQualityHeaderValue> acceptLanguages)
+        {
+            var filteredStatements = new List<Statement>();
+            foreach (var statement in statements)
+            {
+                filteredStatements.Add(FilterWithLanguage(statement, acceptLanguages));
+            }
+
+            return filteredStatements;
+        }
+
+        private Statement FilterWithLanguage(Statement statement, IList<StringWithQualityHeaderValue> acceptLanguages)
+        {
+            if (statement == null
+                || acceptLanguages == null
+                || acceptLanguages.Count == 0)
+            {
+                return statement;
+            }
+
+            FilterWithLanguage(statement.Target as Activity, acceptLanguages);
+
+            statement.Verb.Display = FilterWithLanguage(statement.Verb.Display, acceptLanguages);
+
+            FilterWithLanguage(statement.Context?.ContextActivities?.Category, acceptLanguages);
+            FilterWithLanguage(statement.Context?.ContextActivities?.Grouping, acceptLanguages);
+            FilterWithLanguage(statement.Context?.ContextActivities?.Other, acceptLanguages);
+            FilterWithLanguage(statement.Context?.ContextActivities?.Parent, acceptLanguages);
+            
+            if (statement.Attachments != null)
+            {
+                foreach (var attachment in statement.Attachments)
+                {
+                    attachment.Display = FilterWithLanguage(attachment.Display, acceptLanguages);
+                    attachment.Description = FilterWithLanguage(attachment.Description, acceptLanguages);
+                }
+            }
+
+            return statement;
+        }
+
+        private void FilterWithLanguage(IList<Activity> activities, IList<StringWithQualityHeaderValue> acceptLanguages)
+        {
+            if (activities == null)
+            {
+                return;
+            }
+            
+            foreach (var activity in activities)
+            {
+                FilterWithLanguage(activity, acceptLanguages);
+            }
+        }
+
+        private void FilterWithLanguage(Activity activity, IList<StringWithQualityHeaderValue> acceptLanguages)
+        {
+            if (activity != null && activity.Definition != null)
+            {
+                activity.Definition.Name = FilterWithLanguage(activity.Definition.Name, acceptLanguages);
+                activity.Definition.Description = FilterWithLanguage(activity.Definition.Description, acceptLanguages);
+                FilterWithLanguage(activity.Definition.Choices, acceptLanguages);
+                FilterWithLanguage(activity.Definition.FillIn, acceptLanguages);
+                FilterWithLanguage(activity.Definition.LongFillIn, acceptLanguages);
+                FilterWithLanguage(activity.Definition.Numeric, acceptLanguages);
+                FilterWithLanguage(activity.Definition.Other, acceptLanguages);
+                FilterWithLanguage(activity.Definition.Performance, acceptLanguages);
+                FilterWithLanguage(activity.Definition.Scale, acceptLanguages);
+                FilterWithLanguage(activity.Definition.Sequencing, acceptLanguages);
+                FilterWithLanguage(activity.Definition.Source, acceptLanguages);
+                FilterWithLanguage(activity.Definition.Steps, acceptLanguages);
+                FilterWithLanguage(activity.Definition.Target, acceptLanguages);
+                FilterWithLanguage(activity.Definition.TrueFalse, acceptLanguages);
+            }
+        }
+
+        private void FilterWithLanguage(IList<InteractionComponent> component, IList<StringWithQualityHeaderValue> acceptLanguages)
+        {
+            if (component == null)
+            {
+                return;
+            }
+            
+            foreach (var c in component)
+            {
+                c.Description = FilterWithLanguage(c.Description, acceptLanguages);
+            }
+        }
+
+        private Dictionary<string, string> FilterWithLanguage(Dictionary<string, string> languageMap, IList<StringWithQualityHeaderValue> acceptLanguages)
+        {
+            var filteredMap = new Dictionary<string, string>();
+
+            if (languageMap == null)
+            {
+                return filteredMap;
+            }
+
+            foreach (var name in languageMap)
+            {
+                if (acceptLanguages.Any(x => x.Value == name.Key))
+                {
+                    filteredMap.Add(name.Key, name.Value);
+                }
+            }
+
+            return filteredMap;
         }
 
         private async Task<bool> IsVoided(Guid? id)
@@ -210,7 +320,7 @@ namespace bracken_lrs.Services
             }
         }
 
-        public StatementsResult GetStatements(int limit, DateTime since)
+        public StatementsResult GetStatements(int limit, DateTime since, IList<StringWithQualityHeaderValue> acceptLanguages)
         {
             var collection = _db.GetCollection<Statement>(statementCollection);
             if (collection == null)
@@ -225,10 +335,10 @@ namespace bracken_lrs.Services
                 statements = statements.Where(x => x.Stored >= sinceUtc).ToList();
             }
 
-            return new StatementsResult(statements);
+            return new StatementsResult(FilterWithLanguage(statements, acceptLanguages));
         }
 
-        public StatementsResult GetStatements(Uri verbId)
+        public StatementsResult GetStatements(Uri verbId, IList<StringWithQualityHeaderValue> acceptLanguages)
         {
             var collection = _db.GetCollection<Statement>(statementCollection);
             if (collection == null)
@@ -238,7 +348,7 @@ namespace bracken_lrs.Services
             var cursor = collection.Find(x => x.Verb.Id == verbId);
             var statements = cursor.ToList();
 
-            return new StatementsResult(statements);            
+            return new StatementsResult(FilterWithLanguage(statements, acceptLanguages));            
         }
 
         private async Task<bool> IsTargetVoided(Statement statement)

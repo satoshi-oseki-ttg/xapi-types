@@ -152,7 +152,13 @@ namespace bracken_lrs.Services
             //?? _xApiValidationService.ValidateVerb(statement.Verb);
         }
 
-        public async Task<Statement> GetStatement(Guid? id, bool toGetVoided = false, IList<StringWithQualityHeaderValue> acceptLanguages = null)
+        public async Task<Statement> GetStatement
+        (
+            Guid? id,
+            bool toGetVoided = false,
+            IList<StringWithQualityHeaderValue> acceptLanguages = null,
+            bool isCanonical = false
+        )
         {
             if (toGetVoided != await IsVoided(id))
             {
@@ -167,7 +173,13 @@ namespace bracken_lrs.Services
             var cursor = await collection.FindAsync(x => x.Id == id);
             var statements = cursor.ToList();
 
-            return FilterWithLanguage((statements.Count > 0) ? statements[0] : null, acceptLanguages);
+            var filtered = FilterWithLanguage((statements.Count > 0) ? statements[0] : null, acceptLanguages);
+            if (isCanonical)
+            {
+                filtered = GetCanonicalStatement(filtered);
+            }
+
+            return filtered;
         }
 
         private IList<Statement> FilterWithLanguage(IList<Statement> statements, IList<StringWithQualityHeaderValue> acceptLanguages)
@@ -320,7 +332,28 @@ namespace bracken_lrs.Services
             }
         }
 
-        public StatementsResult GetStatements(int limit, DateTime since, IList<StringWithQualityHeaderValue> acceptLanguages)
+        private Statement GetCanonicalStatement(Statement statement)
+        {
+            return new Statement
+            {
+                Target = statement.Target,
+                Verb = statement.Verb
+            };
+        }
+
+        private IList<Statement> GetCanonicalStatements(IList<Statement> statements)
+        {
+            var canonical = new List<Statement>();
+
+            foreach (var statement in statements)
+            {
+                canonical.Add(GetCanonicalStatement(statement));
+            }
+
+            return canonical;
+        }
+
+        public StatementsResult GetStatements(int limit, DateTime since, IList<StringWithQualityHeaderValue> acceptLanguages, bool isCanonical)
         {
             var collection = _db.GetCollection<Statement>(statementCollection);
             if (collection == null)
@@ -335,10 +368,15 @@ namespace bracken_lrs.Services
                 statements = statements.Where(x => x.Stored >= sinceUtc).ToList();
             }
 
-            return new StatementsResult(FilterWithLanguage(statements, acceptLanguages));
+            var filtered = FilterWithLanguage(statements, acceptLanguages);
+            if (isCanonical)
+            {
+                filtered = GetCanonicalStatements(filtered);
+            }
+            return new StatementsResult(filtered);
         }
 
-        public StatementsResult GetStatements(Uri verbId, IList<StringWithQualityHeaderValue> acceptLanguages)
+        public StatementsResult GetStatements(Uri verbId, IList<StringWithQualityHeaderValue> acceptLanguages, bool isCanonical)
         {
             var collection = _db.GetCollection<Statement>(statementCollection);
             if (collection == null)
@@ -348,7 +386,12 @@ namespace bracken_lrs.Services
             var cursor = collection.Find(x => x.Verb.Id == verbId);
             var statements = cursor.ToList();
 
-            return new StatementsResult(FilterWithLanguage(statements, acceptLanguages));            
+            var filtered = FilterWithLanguage(statements, acceptLanguages);
+            if (isCanonical)
+            {
+                filtered = GetCanonicalStatements(filtered);
+            }
+            return new StatementsResult(filtered);
         }
 
         private async Task<bool> IsTargetVoided(Statement statement)

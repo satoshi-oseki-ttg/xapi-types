@@ -348,16 +348,16 @@ namespace bracken_lrs.Services
                 Id = statement.Id,
                 Actor = new Agent
                 {
-                    Mbox = statement.Actor.Mbox
+                    Mbox = statement.Actor?.Mbox
                 },
                 Verb = new Verb
                 {
-                    Id = statement.Verb.Id
+                    Id = statement.Verb?.Id
                 },
                 Target = GetIdsOnly(statement.Target),
                 Authority = new Agent
                 {
-                    Mbox = statement.Authority.Mbox
+                    Mbox = statement.Authority?.Mbox
                 }
             };
         }
@@ -368,21 +368,21 @@ namespace bracken_lrs.Services
             {
                 return new Activity
                 {
-                    Id = ((Activity)target).Id
+                    Id = ((Activity)target)?.Id
                 };
             }
             else if (target.ObjectType == Agent.OBJECT_TYPE)
             {
                 return new Agent
                 {
-                    Mbox = ((Agent)target).Mbox
+                    Mbox = ((Agent)target)?.Mbox
                 };
             }
             else if (target.ObjectType == Group.OBJECT_TYPE)
             {
                 return new Group
                 {
-                    Mbox = ((Agent)target).Mbox,
+                    Mbox = ((Agent)target)?.Mbox,
                     Member = GetGroupMemberIdsOnly(target as Group)
                 };
             }
@@ -390,19 +390,19 @@ namespace bracken_lrs.Services
             {
                 return new StatementRef
                 {
-                    Id = ((StatementRef)target).Id
+                    Id = ((StatementRef)target)?.Id
                 };
             }
             else if (target.ObjectType == SubStatement.OBJECT_TYPE)
             {
                 return new SubStatement
                 {
-                    Actor = GetIdsOnly(((SubStatement)target).Actor),
+                    Actor = GetIdsOnly(((SubStatement)target)?.Actor),
                     Verb = new Verb
                     {
-                        Id = ((SubStatement)target).Verb.Id
+                        Id = ((SubStatement)target)?.Verb?.Id
                     },
-                    Target = GetIdsOnly(((SubStatement)target).Target)
+                    Target = GetIdsOnly(((SubStatement)target)?.Target)
                 };
             }
 
@@ -415,14 +415,14 @@ namespace bracken_lrs.Services
             {
                 return new Agent
                 {
-                    Mbox = ((Agent)agent).Mbox
+                    Mbox = ((Agent)agent)?.Mbox
                 };
             }
             else if (agent.ObjectType == Group.OBJECT_TYPE)
             {
                 return new Group
                 {
-                    Mbox = ((Agent)agent).Mbox
+                    Mbox = ((Agent)agent)?.Mbox
                 };
             }
 
@@ -432,11 +432,16 @@ namespace bracken_lrs.Services
         private List<Agent> GetGroupMemberIdsOnly(Group group)
         {
             var members = new List<Agent>();
+            if (group.Member == null)
+            {
+                return members;
+            }
+            
             foreach(var agent in group.Member)
             {
                 members.Add(new Agent
                 {
-                    Mbox = agent.Mbox
+                    Mbox = agent?.Mbox
                 });
             }
 
@@ -457,14 +462,14 @@ namespace bracken_lrs.Services
 
         private IList<Statement> GetIdsOnly(IList<Statement> statements)
         {
-            var canonical = new List<Statement>();
+            var idsOnly = new List<Statement>();
 
             foreach (var statement in statements)
             {
-                canonical.Add(GetIdsOnly(statement));
+                idsOnly.Add(GetIdsOnly(statement));
             }
 
-            return canonical;
+            return idsOnly;
         }
 
         public StatementsResult GetStatements(int limit, DateTime since, IList<StringWithQualityHeaderValue> acceptLanguages, string format)
@@ -476,7 +481,7 @@ namespace bracken_lrs.Services
             }
             var cursor = collection.Find(new BsonDocument()).SortByDescending(x => x.Stored).Limit(limit);
             var statements = cursor.ToList();
-            if (since != null)
+            if (since != null && since != DateTime.MinValue)
             {
                 var sinceUtc = since.ToUniversalTime();
                 statements = statements.Where(x => x.Stored >= sinceUtc).ToList();

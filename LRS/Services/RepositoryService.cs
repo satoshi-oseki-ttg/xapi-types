@@ -337,7 +337,8 @@ namespace bracken_lrs.Services
             return new Statement
             {
                 Target = statement.Target,
-                Verb = statement.Verb
+                Verb = statement.Verb,
+                Context = statement.Context
             };
         }
 
@@ -436,7 +437,7 @@ namespace bracken_lrs.Services
             {
                 return members;
             }
-            
+
             foreach(var agent in group.Member)
             {
                 members.Add(new Agent

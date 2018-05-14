@@ -9,12 +9,7 @@ namespace bracken_lrs.Models.xAPI
     public class Agent : IStatementTarget, IEquatable<Agent>
     {
         public static readonly string OBJECT_TYPE = "Agent";
-        protected string objectType;
-        public virtual string ObjectType
-        {
-            get { return OBJECT_TYPE; }
-            set { objectType = value; }
-        }
+        public virtual string ObjectType { get; set; }
         [JsonConverter(typeof(StrictNumberToStringConverter))]
         public string Name { get; set; }
         public string Mbox { get; set; }

@@ -8,20 +8,7 @@ namespace bracken_lrs.Models.xAPI
     public class StatementRef : IStatementTarget
     {
         public static readonly String OBJECT_TYPE = "StatementRef";
-        private string objectType;
-        public string ObjectType
-        {
-            get { return OBJECT_TYPE; }
-            set
-            {
-                if (value != OBJECT_TYPE)
-                {
-                    throw new Exception("ObjectType must be StatementRef");
-                }
-                objectType = value;
-            }
-        }
-
+        public string ObjectType { get; set; }
         public StatementRef()
         {
         }

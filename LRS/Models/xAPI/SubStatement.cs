@@ -8,7 +8,7 @@ namespace bracken_lrs.Models.xAPI
     public class SubStatement : StatementBase, IStatementTarget
     {
         public static readonly String OBJECT_TYPE = "SubStatement";
-        public String ObjectType { get { return OBJECT_TYPE; } }
+        public string ObjectType { get; set; }
 
         [OnDeserializing]
         private void OnDeserializing(StreamingContext context)

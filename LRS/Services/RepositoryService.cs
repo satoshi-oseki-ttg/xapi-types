@@ -369,6 +369,7 @@ namespace bracken_lrs.Services
             {
                 return new Activity
                 {
+                    ObjectType = null,
                     Id = ((Activity)target)?.Id
                 };
             }
@@ -376,6 +377,7 @@ namespace bracken_lrs.Services
             {
                 return new Agent
                 {
+                    ObjectType = null,
                     Mbox = ((Agent)target)?.Mbox
                 };
             }
@@ -383,6 +385,7 @@ namespace bracken_lrs.Services
             {
                 return new Group
                 {
+                    ObjectType = null,
                     Mbox = ((Agent)target)?.Mbox,
                     Member = GetGroupMemberIdsOnly(target as Group)
                 };
@@ -391,6 +394,7 @@ namespace bracken_lrs.Services
             {
                 return new StatementRef
                 {
+                    ObjectType = null,
                     Id = ((StatementRef)target)?.Id
                 };
             }
@@ -416,6 +420,7 @@ namespace bracken_lrs.Services
             {
                 return new Agent
                 {
+                    ObjectType = agent.ObjectType,
                     Mbox = ((Agent)agent)?.Mbox
                 };
             }
@@ -423,6 +428,7 @@ namespace bracken_lrs.Services
             {
                 return new Group
                 {
+                    ObjectType = agent.ObjectType,
                     Mbox = ((Agent)agent)?.Mbox
                 };
             }

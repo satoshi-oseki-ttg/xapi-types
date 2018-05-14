@@ -10,17 +10,8 @@ namespace bracken_lrs.Models.xAPI
     public class Activity : IStatementTarget
     {
         public static readonly string OBJECT_TYPE = "Activity";
-
-        private string objectType;
-        [JsonIgnore]
-        public string ObjectType
-        {
-            get { return OBJECT_TYPE; }
-            set { objectType = value; }
-        }
-
+        public string ObjectType { get; set; }
         public Uri Id { get; set; }
-
         public ActivityDefinition Definition { get; set; }
 
         [OnDeserialized]

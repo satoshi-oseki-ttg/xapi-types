@@ -54,19 +54,44 @@ namespace bracken_lrs.Controllers
         (
             [FromQuery] Guid statementId,
             [FromQuery] Guid voidedStatementId,
-            [FromQuery] int limit,
-            [FromQuery] DateTime since,
+            [FromQuery] Agent agent,
             [FromQuery] Uri verb,
+            [FromQuery] Uri activity,
+            [FromQuery] Guid registration,
+            [FromQuery] bool related_activities,
+            [FromQuery] bool related_agents,
+            [FromQuery] DateTime since,
+            [FromQuery] DateTime until,
+            [FromQuery] int limit,
+            [FromQuery] string format, // "ids" | "exact" | "canonical"
             [FromQuery] bool attachments,
-            [FromQuery] string format
+            [FromQuery] bool ascending
         )
         {
+            Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
+
             var lang = Request.Headers["Accept-Language"];
             var acceptLanguages = format == "canonical"
                 ? Microsoft.Net.Http.Headers.StringWithQualityHeaderValue.ParseList(lang)
                 : null;
 
-            Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
+            if (statementId != Guid.Empty
+                &&
+                (!string.IsNullOrEmpty(agent.ObjectType)
+                || verb != null
+                || activity != null
+                || registration != Guid.Empty
+                || related_activities
+                || related_agents
+                || since != DateTime.MinValue
+                || until != DateTime.MinValue
+                || limit > 0
+                || ascending
+                )
+            )
+            {
+                return BadRequest("GET can't use filtering parameters (e.g. since, ascending) when statementId is specified.");
+            }
 
             var noIds = statementId == Guid.Empty
                 && voidedStatementId == Guid.Empty

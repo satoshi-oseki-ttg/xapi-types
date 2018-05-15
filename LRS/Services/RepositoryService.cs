@@ -517,6 +517,12 @@ namespace bracken_lrs.Services
                 statements = statements.Where(x => x.Stored >= sinceUtc).ToList();
             }
 
+            if (until != null && until != DateTime.MinValue)
+            {
+                var untilUtc = until.ToUniversalTime();
+                statements = statements.Where(x => x.Stored <= untilUtc).ToList();        
+            }
+
             var filtered = FilterWithLanguage(statements, acceptLanguages);
             if (format == "canonical")
             {

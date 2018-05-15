@@ -54,7 +54,7 @@ namespace bracken_lrs.Controllers
         (
             [FromQuery] Guid statementId,
             [FromQuery] Guid voidedStatementId,
-            [FromQuery] Agent agent,
+            [FromQuery] string agent, // JSON
             [FromQuery] Uri verb,
             [FromQuery] Uri activity,
             [FromQuery] Guid registration,
@@ -70,6 +70,14 @@ namespace bracken_lrs.Controllers
         {
             Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
 
+            IList<string> invalidParameters;
+            var allParametersValid = AreQueryParametersValid(Request.Query.Keys, out invalidParameters);
+
+            if (!allParametersValid)
+            {
+                return BadRequest($"{string.Join(",", invalidParameters)} are invalid parameters.");
+            }
+
             var lang = Request.Headers["Accept-Language"];
             var acceptLanguages = format == "canonical"
                 ? Microsoft.Net.Http.Headers.StringWithQualityHeaderValue.ParseList(lang)
@@ -77,7 +85,7 @@ namespace bracken_lrs.Controllers
 
             if (statementId != Guid.Empty
                 &&
-                (!string.IsNullOrEmpty(agent.ObjectType)
+                (!string.IsNullOrEmpty(agent)
                 || verb != null
                 || activity != null
                 || registration != Guid.Empty
@@ -94,22 +102,19 @@ namespace bracken_lrs.Controllers
             }
 
             var noIds = statementId == Guid.Empty
-                && voidedStatementId == Guid.Empty
-                && verb == null;
+                && voidedStatementId == Guid.Empty;
+                // && verb == null;
             if (noIds)
             {
-                var result = _repositoryService.GetStatements(limit, since, acceptLanguages, format);
+                var agentObject = agent != null
+                    ? JsonConvert.DeserializeObject<Agent>(agent)
+                    : null;
+                var result = _repositoryService.GetStatements(agentObject, verb, activity, registration, limit, since, acceptLanguages, format);
                 if (limit > 0 || since != null && since > DateTime.MinValue || attachments)
                 {
                     var lastStatementStored = result.Statements.First().Stored.ToString("o");
                     result.More = $"/tcapi/statements?since={lastStatementStored}";
                 }
-                return Ok(result);
-            }
-            
-            if (verb != null)
-            {
-                var result = _repositoryService.GetStatements(verb, acceptLanguages, format);
                 return Ok(result);
             }
 
@@ -121,6 +126,39 @@ namespace bracken_lrs.Controllers
             }
 
             return Ok(statement);
+        }
+
+        private bool AreQueryParametersValid(ICollection<string> queryPatameters, out IList<string> invalidParameters)
+        {
+            var validQueryParameters = new [] {
+                "statementId",
+                "voidedStatementId",
+                "agent",
+                "verb",
+                "activity",
+                "registration",
+                "related_activities",
+                "related_agents",
+                "since",
+                "until",
+                "limit",
+                "format",
+                "attachments",
+                "ascending"
+            };
+
+            invalidParameters = new List<string>();
+            var result = true;
+            foreach (var q in queryPatameters)
+            {
+                if (!validQueryParameters.Any(x => x == q))
+                {
+                    invalidParameters.Add(q);
+                    result = false;
+                }
+            }
+
+            return result;
         }
 
         [HttpHead("statements")]

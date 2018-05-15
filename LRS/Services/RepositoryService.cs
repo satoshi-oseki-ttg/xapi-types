@@ -479,14 +479,33 @@ namespace bracken_lrs.Services
             return idsOnly;
         }
 
-        public StatementsResult GetStatements(int limit, DateTime since, IList<StringWithQualityHeaderValue> acceptLanguages, string format)
+        public StatementsResult GetStatements
+        (
+            Agent agent,
+            Uri verbId,
+            Uri activity,
+            Guid registration,
+            int limit,
+            DateTime since,
+            IList<StringWithQualityHeaderValue> acceptLanguages,
+            string format
+        )
         {
             var collection = _db.GetCollection<Statement>(statementCollection);
             if (collection == null)
             {
                 return null;
             }
-            var cursor = collection.Find(new BsonDocument()).SortByDescending(x => x.Stored).Limit(limit);
+
+            var filter = Builders<Statement>.Filter.Where(statement =>
+                (agent == null || agent.Equals(statement.Actor))
+                && (verbId == null || statement.Verb.Id == verbId)
+                && (activity == null || statement.Target as Activity != null && ((Activity)statement.Target).Id == activity)
+                && (registration == Guid.Empty || statement.Context != null && statement.Context.Registration == registration)
+            );
+
+            var cursor = collection.Find(filter).SortByDescending(x => x.Stored).Limit(limit);
+
             var statements = cursor.ToList();
             if (since != null && since != DateTime.MinValue)
             {
@@ -504,24 +523,6 @@ namespace bracken_lrs.Services
                 filtered = GetIdsOnly(filtered);
             }
 
-            return new StatementsResult(filtered);
-        }
-
-        public StatementsResult GetStatements(Uri verbId, IList<StringWithQualityHeaderValue> acceptLanguages, string format)
-        {
-            var collection = _db.GetCollection<Statement>(statementCollection);
-            if (collection == null)
-            {
-                return null;
-            }
-            var cursor = collection.Find(x => x.Verb.Id == verbId);
-            var statements = cursor.ToList();
-
-            var filtered = FilterWithLanguage(statements, acceptLanguages);
-            if (format == "canonical")
-            {
-                filtered = GetCanonicalStatements(filtered);
-            }
             return new StatementsResult(filtered);
         }
 

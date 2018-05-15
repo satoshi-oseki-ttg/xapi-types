@@ -109,7 +109,8 @@ namespace bracken_lrs.Controllers
                 var agentObject = agent != null
                     ? JsonConvert.DeserializeObject<Agent>(agent)
                     : null;
-                var result = _repositoryService.GetStatements(agentObject, verb, activity, registration, limit, since, acceptLanguages, format);
+                var result = _repositoryService.GetStatements
+                    (agentObject, verb, activity, registration, limit, since, until, acceptLanguages, format, ascending);
                 if (limit > 0 || since != null && since > DateTime.MinValue || attachments)
                 {
                     var lastStatementStored = result.Statements.First().Stored.ToString("o");

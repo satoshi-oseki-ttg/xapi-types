@@ -487,8 +487,10 @@ namespace bracken_lrs.Services
             Guid registration,
             int limit,
             DateTime since,
+            DateTime until,
             IList<StringWithQualityHeaderValue> acceptLanguages,
-            string format
+            string format,
+            bool ascending
         )
         {
             var collection = _db.GetCollection<Statement>(statementCollection);
@@ -504,7 +506,9 @@ namespace bracken_lrs.Services
                 && (registration == Guid.Empty || statement.Context != null && statement.Context.Registration == registration)
             );
 
-            var cursor = collection.Find(filter).SortByDescending(x => x.Stored).Limit(limit);
+            var cursor = ascending
+                ? collection.Find(filter).SortBy(x => x.Stored).Limit(limit)
+                : collection.Find(filter).SortByDescending(x => x.Stored).Limit(limit);
 
             var statements = cursor.ToList();
             if (since != null && since != DateTime.MinValue)

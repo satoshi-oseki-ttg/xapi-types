@@ -390,9 +390,26 @@ namespace bracken_lrs.Controllers
             return Ok();
         }
 
+        [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
         [HttpPost("activities/state")]
         public async Task<IActionResult> PostState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
         {
+            if (string.IsNullOrEmpty(activityId))
+            {
+                return BadRequest("POST activities/state: The activityId parameter must be supplied.");
+            }
+
+            if (string.IsNullOrEmpty(agent))
+            {
+                return BadRequest("POST activities/state: The agent parameter must be supplied.");
+            }
+
+            if (Request.ContentType != "application/json")
+            {
+                return BadRequest("POST activities/state: The ContentType must be 'application/json'.");
+            }
+
             using (var ms = new MemoryStream(2048))
             {
                 Request.Body.CopyTo(ms);
@@ -407,27 +424,55 @@ namespace bracken_lrs.Controllers
         }
 
         [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
         [HttpPut("activities/state")]
         public async Task<IActionResult> PutState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
         {
+            if (string.IsNullOrEmpty(activityId))
+            {
+                return BadRequest("PUT activities/state: The activityId parameter must be supplied.");
+            }
+
+            if (string.IsNullOrEmpty(agent))
+            {
+                return BadRequest("PUT activities/state: The agent parameter must be supplied.");
+            }
+
             using (var ms = new MemoryStream(2048))
             {
                 Request.Body.CopyTo(ms);
                 var value = ms.ToArray();
-                var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
-                //_xApiService.SaveState(value, stateId, activityId, agent);
-                //_jobQueueService.EnqueueState(value, stateId, activityId, agent);
-                await _repositoryService.SaveState(value, stateId, activityId, agentObject, Request.ContentType);
-
-                return await Task.FromResult(NoContent());
+                try
+                {
+                    var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
+                    //_xApiService.SaveState(value, stateId, activityId, agent);
+                    //_jobQueueService.EnqueueState(value, stateId, activityId, agent);
+                    await  _repositoryService.SaveState(value, stateId, activityId, agentObject, Request.ContentType);
+                    return NoContent();
+                }
+                catch (JsonException)
+                {
+                    return BadRequest("PUT activities/state: The agent parameter must be a valid JSON.");
+                }
             }
         }
 
         [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
         [HttpGet("activities/state")]
         public async Task<IActionResult> GetState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
         {
             Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
+
+            if (string.IsNullOrEmpty(activityId))
+            {
+                return BadRequest("GET activities/state: The activityId parameter must be supplied.");
+            }
+
+            if (string.IsNullOrEmpty(agent))
+            {
+                return BadRequest("GET activities/state: The agent parameter must be supplied.");
+            }
 
             var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
             var doc = await _repositoryService.GetStateDocument(stateId, activityId, agentObject);
@@ -451,6 +496,16 @@ namespace bracken_lrs.Controllers
         [HttpDelete("activities/state")]
         public async Task<IActionResult> DeleteState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
         {
+            if (string.IsNullOrEmpty(activityId))
+            {
+                return BadRequest("DELETE activities/state: The activityId parameter must be supplied.");
+            }
+
+            if (string.IsNullOrEmpty(agent))
+            {
+                return BadRequest("DELETE activities/state: The agent parameter must be supplied.");
+            }
+
             var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
             var isAcknowledged = await _repositoryService.DeleteStateDocument(stateId, activityId, agentObject);
 

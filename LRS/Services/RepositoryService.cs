@@ -581,7 +581,7 @@ namespace bracken_lrs.Services
             return false;
         }
 
-        public async Task SaveState(byte[] value, string stateId, string activityId, Agent agent)
+        public async Task SaveState(byte[] value, string stateId, string activityId, Agent agent, string contentType)
         {
             if (value == null)
             {
@@ -591,11 +591,13 @@ namespace bracken_lrs.Services
             var state = new StateDocument
             {
                 Id = stateId,
+                Etag = DateTime.UtcNow.Ticks.ToString(),
                 Activity = new Activity
                 {
                     Id = new Uri(activityId)
                 },
                 Agent = agent,
+                ContentType = contentType,
                 Content = value
             };
 
@@ -640,7 +642,28 @@ namespace bracken_lrs.Services
             var contentBytes = state.Content;
             var stateAsString = contentBytes != null ? System.Text.Encoding.UTF8.GetString(contentBytes) : null;
             
-            return stateAsString;
+            return await Task.FromResult(stateAsString);
         }
+
+        public async Task<StateDocument> GetStateDocument(string stateId, string activityId, Agent agent)
+        {
+            var collection = _db.GetCollection<StateDocument>(stateCollection);
+            if (collection == null)
+            {
+                return null;
+            }
+
+            var cursor = await collection.FindAsync
+                (
+                    x =>
+                        x.Id == stateId &&
+                        x.Activity.Id == new Uri(activityId) &&
+                        x.Agent.Account.Name == agent.Account.Name
+                );
+            var state = await cursor.FirstOrDefaultAsync();
+
+            return state;
+        }
+
     }
 }

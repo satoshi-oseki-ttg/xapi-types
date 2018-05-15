@@ -5,6 +5,7 @@ using bracken_lrs.Models.xAPI;
 using System.Collections.Generic;
 using System.IO;
 using Microsoft.Net.Http.Headers;
+using bracken_lrs.Models.xAPI.Documents;
 
 namespace bracken_lrs.Services
 {
@@ -26,7 +27,8 @@ namespace bracken_lrs.Services
             string format,
             bool ascending
         );
-        Task SaveState(byte[] value, string stateId, string activityId, Agent agent);
+        Task SaveState(byte[] value, string stateId, string activityId, Agent agent, string contentType);
         Task<string> GetState(string stateId, string activityId, Agent agent);
+        Task<StateDocument> GetStateDocument(string stateId, string activityId, Agent agent);
     }
 }

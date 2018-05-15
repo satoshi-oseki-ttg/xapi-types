@@ -17,6 +17,8 @@ using Microsoft.AspNetCore.WebUtilities;
 using System.Net;
 using System.Web;
 using bracken_lrs.Attributes;
+using bracken_lrs.Model;
+using bracken_lrs.Models.xAPI.Documents;
 
 namespace bracken_lrs.Controllers
 {
@@ -398,7 +400,7 @@ namespace bracken_lrs.Controllers
                 var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
                 //_xApiService.SaveState(value, stateId, activityId, agent);
                 //_jobQueueService.EnqueueState(value, stateId, activityId, agent);
-                await _repositoryService.SaveState(value, stateId, activityId, agentObject);
+                await _repositoryService.SaveState(value, stateId, activityId, agentObject, Request.ContentType);
 
                 return NoContent();
             }
@@ -415,17 +417,34 @@ namespace bracken_lrs.Controllers
                 var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
                 //_xApiService.SaveState(value, stateId, activityId, agent);
                 //_jobQueueService.EnqueueState(value, stateId, activityId, agent);
-                await _repositoryService.SaveState(value, stateId, activityId, agentObject);
+                await _repositoryService.SaveState(value, stateId, activityId, agentObject, Request.ContentType);
 
                 return await Task.FromResult(NoContent());
             }
         }
 
+        [ProducesResponseType(200)]
         [HttpGet("activities/state")]
-        public async Task<string> GetState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
+        public async Task<IActionResult> GetState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
         {
+            Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
+
             var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
-            return await _repositoryService.GetState(stateId, activityId, agentObject);
+            var doc = await _repositoryService.GetStateDocument(stateId, activityId, agentObject);
+            var stateAsString = doc.Content != null ? System.Text.Encoding.UTF8.GetString(doc.Content) : null;
+            if (stateAsString == null)
+            {
+                return NotFound();
+            }
+
+            if (doc.ContentType == "application/json")
+            {
+                return Ok(JsonConvert.DeserializeObject<JObject>(stateAsString));
+            }
+            else
+            {
+                return Ok(stateAsString);
+            }
         }
 
         [ProducesResponseType(200)]

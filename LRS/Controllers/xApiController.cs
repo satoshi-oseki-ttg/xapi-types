@@ -330,6 +330,7 @@ namespace bracken_lrs.Controllers
         }
 
         [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
         [HttpPut("statements")]
         public async Task<IActionResult> PutStatement([FromBody]object obj, [FromQuery]Guid statementId, [FromQuery]Guid publishedResultID)
         {
@@ -369,6 +370,7 @@ namespace bracken_lrs.Controllers
 
         [Consumes("application/x-www-form-urlencoded")]
         [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
         [HttpPut("statements")]
         public async Task<IActionResult> PutStatementWithHttpMethodAsync([FromForm]IFormCollection query, [FromQuery]string method)
         {
@@ -402,8 +404,9 @@ namespace bracken_lrs.Controllers
             }
         }
 
+        [ProducesResponseType(204)]
         [HttpPut("activities/state")]
-        public async Task PutState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
+        public async Task<IActionResult> PutState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
         {
             using (var ms = new MemoryStream(2048))
             {
@@ -413,6 +416,8 @@ namespace bracken_lrs.Controllers
                 //_xApiService.SaveState(value, stateId, activityId, agent);
                 //_jobQueueService.EnqueueState(value, stateId, activityId, agent);
                 await _repositoryService.SaveState(value, stateId, activityId, agentObject);
+
+                return await Task.FromResult(NoContent());
             }
         }
 

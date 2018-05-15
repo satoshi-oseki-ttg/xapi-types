@@ -77,6 +77,14 @@ namespace bracken_lrs.Services
             }
 
             var ids = new List<string>();
+
+            foreach (var jObject in jObjects) // Validate all of the statements, then save if all valid
+            {
+                _xApiValidationService.ValidateStatement(jObject as JObject);
+                var statement = JsonConvert.DeserializeObject<Statement>(jObject.ToString());
+                await ValidateStatement(statement);
+            }
+
             foreach (var jObject in jObjects)
             {
                 var id = await SaveStatement(jObject as JObject, statementId, lrsUrl, userName);
@@ -93,8 +101,6 @@ namespace bracken_lrs.Services
 
         private async Task<string> SaveStatement(JObject jObject, Guid? statementId, string lrsUrl, string userName)
         {
-            _xApiValidationService.ValidateStatement(jObject);
-
             var statement = JsonConvert.DeserializeObject<Statement>(jObject.ToString());
 
             return await DoSaveStatement(statement, statementId, lrsUrl, userName);
@@ -102,8 +108,6 @@ namespace bracken_lrs.Services
 
         private async Task<string> DoSaveStatement(Statement statement, Guid? statementId, string lrsUrl, string userName)
         {
-            await ValidateStatement(statement);
-
             if (statement.Id == null || statement.Id == Guid.Empty)
             {
                 statement.Id = (statementId == null)

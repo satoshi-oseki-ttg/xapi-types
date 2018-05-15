@@ -30,5 +30,6 @@ namespace bracken_lrs.Services
         Task SaveState(byte[] value, string stateId, string activityId, Agent agent, string contentType);
         Task<string> GetState(string stateId, string activityId, Agent agent);
         Task<StateDocument> GetStateDocument(string stateId, string activityId, Agent agent);
+        Task<bool> DeleteStateDocument(string stateId, string activityId, Agent agent);
     }
 }

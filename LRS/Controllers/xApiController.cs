@@ -447,6 +447,16 @@ namespace bracken_lrs.Controllers
             }
         }
 
+        [ProducesResponseType(204)]
+        [HttpDelete("activities/state")]
+        public async Task<IActionResult> DeleteState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
+        {
+            var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
+            var isAcknowledged = await _repositoryService.DeleteStateDocument(stateId, activityId, agentObject);
+
+            return NoContent();
+        }
+
         [ProducesResponseType(200)]
         [HttpHead("activities/profile")]
         public IActionResult HeadActivityProfile([FromQuery]Guid activityId)

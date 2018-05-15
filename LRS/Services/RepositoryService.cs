@@ -654,16 +654,34 @@ namespace bracken_lrs.Services
             }
 
             var cursor = await collection.FindAsync
-                (
-                    x =>
-                        x.Id == stateId &&
-                        x.Activity.Id == new Uri(activityId) &&
-                        x.Agent.Account.Name == agent.Account.Name
-                );
+            (
+                x =>
+                    x.Id == stateId &&
+                    x.Activity.Id == new Uri(activityId) &&
+                    x.Agent.Account.Name == agent.Account.Name
+            );
             var state = await cursor.FirstOrDefaultAsync();
 
             return state;
         }
 
+        public async Task<bool> DeleteStateDocument(string stateId, string activityId, Agent agent)
+        {
+            var collection = _db.GetCollection<StateDocument>(stateCollection);
+            if (collection == null)
+            {
+                return false;
+            }
+
+            var deleteResult = await collection.DeleteOneAsync
+            (
+                x =>
+                    x.Id == stateId &&
+                    x.Activity.Id == new Uri(activityId) &&
+                    x.Agent.Account.Name == agent.Account.Name
+            );
+
+            return deleteResult.IsAcknowledged;
+        }
     }
 }

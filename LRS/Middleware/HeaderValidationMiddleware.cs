@@ -26,10 +26,12 @@ namespace bracken_lrs.Middleware
 
             string xApiVersion = context.Request.Headers["X-Experience-API-Version"];
             var versionOneRegex = new Regex("^1\\.0(\\.[0-9])*$");
-            if (xApiVersion == null || !versionOneRegex.IsMatch(xApiVersion))
+            if (context.Request.Method == "GET" && !context.Request.Path.Value.EndsWith("about") // GET about doesn't need a valid X-Experience-API-Version.
+                && (xApiVersion == null || !versionOneRegex.IsMatch(xApiVersion)))
             {
                 // context.Response.Clear();
                 context.Response.StatusCode = 400; // Bad request
+                context.Response.Headers["X-Experience-API-Version"] = "1.0.3";
                 await context.Response.WriteAsync("xAPI version must be 1.0.*.");
                 return;
                 //return await new Task();

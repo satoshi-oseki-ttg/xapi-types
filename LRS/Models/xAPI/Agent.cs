@@ -19,6 +19,14 @@ namespace bracken_lrs.Models.xAPI
         public string OpenId { get; set; }
         public AgentAccount Account { get; set; }
 
+        public bool IsValid()
+        {
+            return !string.IsNullOrEmpty(Mbox)
+                || !string.IsNullOrEmpty(MboxSha1Sum)
+                || !string.IsNullOrEmpty(OpenId)
+                || !string.IsNullOrEmpty(Account?.Name) && Account?.HomePage != null;
+        }
+        
         public bool Equals(Agent other)
         {
             return Account != null && Account != null &&

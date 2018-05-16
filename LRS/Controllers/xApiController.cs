@@ -905,6 +905,32 @@ namespace bracken_lrs.Controllers
             return Ok(activity);
         }
 
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [HttpGet("agents")]
+        public async Task<IActionResult> GetAgents([FromQuery]string agent)
+        {
+            if (string.IsNullOrEmpty(agent))
+            {
+                return BadRequest("GET agents: The agent parameter must be supplied.");
+            }
+
+            try
+            {
+                var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
+                if (!agentObject.IsValid())
+                {
+                    return BadRequest("GET agents: The agent parameter must be be uniquely identifiable.");
+                }
+                var person = await _repositoryService.GetPerson(agentObject);
+                return Ok(person);
+            }
+            catch (JsonException)
+            {
+                return BadRequest("GET agents: The agent parameter must be a valid JSON.");
+            }
+        }
+
         [AllowAnonymous]
         [ProducesResponseType(200)]
         [HttpGet("about")]

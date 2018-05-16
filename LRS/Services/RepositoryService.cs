@@ -924,5 +924,31 @@ namespace bracken_lrs.Services
 
             return result.ToObject<Activity>();
         }
+
+        public async Task<Person> GetPerson(Agent agent)
+        {
+            var person = new Person();
+            var collection = _db.GetCollection<Statement>(statementCollection);
+            if (collection == null)
+            {
+                return person;
+            }
+
+            var cursor = await collection.FindAsync
+            (
+                x => x.Actor.Equals(agent)
+            );
+
+            var statements = cursor.ToList();
+            foreach (var statement in statements)
+            {
+                if (!string.IsNullOrEmpty(statement.Actor?.Name))
+                {
+                    person.Name.Add(statement.Actor.Name);
+                }
+            }
+
+            return person;
+        }
     }
 }

@@ -18,6 +18,8 @@ namespace bracken_lrs.Middleware
 
         public async Task Invoke(HttpContext context)
         {
+            context.Response.Headers["X-Experience-API-Version"] = "1.0.3";
+
             if (context.Request.Method == "POST" && context.Request.Query.Keys.Contains("method") // An alternate request doesn't always have xAPI version.
                 || context.Request.Method == "GET" && context.Request.Path.Value.EndsWith("about")) // GET about doesn't need a valid X-Experience-API-Version.
             {
@@ -31,7 +33,6 @@ namespace bracken_lrs.Middleware
             {
                 // context.Response.Clear();
                 context.Response.StatusCode = 400; // Bad request
-                context.Response.Headers["X-Experience-API-Version"] = "1.0.3";
                 await context.Response.WriteAsync("xAPI version must be 1.0.*.");
                 return;
                 //return await new Task();

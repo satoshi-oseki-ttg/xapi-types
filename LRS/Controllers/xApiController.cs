@@ -562,5 +562,13 @@ namespace bracken_lrs.Controllers
         {
             return NoContent();
         }
+
+        [AllowAnonymous]
+        [ProducesResponseType(200)]
+        [HttpGet("about")]
+        public IActionResult GetAbout()
+        {
+            return Ok("Bracken LRS v1.0");
+        }
     }
 }

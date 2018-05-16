@@ -336,6 +336,13 @@ namespace bracken_lrs.Controllers
         [HttpPut("statements")]
         public async Task<IActionResult> PutStatement([FromBody]object obj, [FromQuery]Guid statementId, [FromQuery]Guid publishedResultID)
         {
+            IList<string> invalidParameters;
+            var allParametersValid = AreQueryParametersValid(Request.Query.Keys, out invalidParameters);
+            if (!allParametersValid)
+            {
+                return BadRequest($"{string.Join(",", invalidParameters)} are invalid parameters.");
+            }
+
             if (statementId == Guid.Empty)
             {
                 return await Task.FromResult(BadRequest("There's no statementId supplied in a PUT statement request."));

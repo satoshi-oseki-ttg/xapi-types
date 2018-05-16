@@ -19,6 +19,7 @@ using bracken_lrs.Models.Json;
 using System.IO;
 using System.Net.Http;
 using bracken_lrs.DictionaryExtensions;
+using System.Text;
 
 namespace bracken_lrs.Services
 {
@@ -588,6 +589,16 @@ namespace bracken_lrs.Services
                 return;
             }
 
+            var doc = await GetStateDocument(stateId, activityId, agent);
+            if (doc != null && doc.ContentType == "application/json"
+                && contentType == "application/json") // Merge JSONs
+            {
+                var content = JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(doc.Content));
+                var contentAdded = JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(value));
+                content.Merge(contentAdded);
+                value = Encoding.UTF8.GetBytes(content.ToString());
+            }
+            
             var state = new StateDocument
             {
                 Id = stateId,

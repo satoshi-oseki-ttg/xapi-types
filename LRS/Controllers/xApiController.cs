@@ -405,22 +405,38 @@ namespace bracken_lrs.Controllers
                 return BadRequest("POST activities/state: The agent parameter must be supplied.");
             }
 
-            if (Request.ContentType != "application/json")
+            if (Request.ContentType == "application/json")
+            {
+                var stateContent = await new StreamContent(Request.Body).ReadAsByteArrayAsync();
+                try
+                {
+                    JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(stateContent));
+                    var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
+                    await _repositoryService.SaveState(stateContent, stateId, activityId, agentObject, Request.ContentType);
+
+                    return NoContent();
+                }
+                catch (JsonException)
+                {
+                    return BadRequest("POST activities/state: The state value must be a valid JSON.");
+                }
+            }
+            else
             {
                 return BadRequest("POST activities/state: The ContentType must be 'application/json'.");
             }
 
-            using (var ms = new MemoryStream(2048))
-            {
-                Request.Body.CopyTo(ms);
-                var value = ms.ToArray();
-                var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
-                //_xApiService.SaveState(value, stateId, activityId, agent);
-                //_jobQueueService.EnqueueState(value, stateId, activityId, agent);
-                await _repositoryService.SaveState(value, stateId, activityId, agentObject, Request.ContentType);
+            // using (var ms = new MemoryStream(2048))
+            // {
+            //     Request.Body.CopyTo(ms);
+            //     var value = ms.ToArray();
+            //     var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
+            //     //_xApiService.SaveState(value, stateId, activityId, agent);
+            //     //_jobQueueService.EnqueueState(value, stateId, activityId, agent);
+            //     await _repositoryService.SaveState(value, stateId, activityId, agentObject, Request.ContentType);
 
-                return NoContent();
-            }
+            //     return NoContent();
+            // }
         }
 
         [ProducesResponseType(204)]

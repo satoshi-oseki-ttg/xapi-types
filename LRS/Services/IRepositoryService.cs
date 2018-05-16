@@ -39,5 +39,6 @@ namespace bracken_lrs.Services
         Task<AgentProfileDocument> GetAgentProfileDocument(Agent agent, string profileId);
         Task<IList<AgentProfileDocument>> GetAgentProfileDocuments(Agent agent, DateTime? since);
         Task<bool> DeleteAgentProfile(Agent agent, string profileId);
+        Task<Activity> GetActivity(string activityId);
     }
 }

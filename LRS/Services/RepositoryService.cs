@@ -895,5 +895,34 @@ namespace bracken_lrs.Services
 
             return deleteResult.IsAcknowledged;
         }
+
+        public async Task<Activity> GetActivity(string activityId)
+        {
+            var collection = _db.GetCollection<Statement>(statementCollection);
+            if (collection == null)
+            {
+                return null;
+            }
+
+            var cursor = await collection.FindAsync
+            (
+                x =>
+                    x.Target as Activity != null
+                    && ((Activity)x.Target).Id == new Uri(activityId)
+            );
+
+            var statements = cursor.ToList();
+            var result = new JObject();
+            var jsonSerializerSettings = new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore };
+            foreach (var statement in statements)
+            {
+                var activityJson = JsonConvert.SerializeObject((Activity)statement.Target, jsonSerializerSettings);
+                var activityJObject =
+                    JsonConvert.DeserializeObject<JObject>(activityJson);
+                result.Merge(activityJObject);
+            }
+
+            return result.ToObject<Activity>();
+        }
     }
 }

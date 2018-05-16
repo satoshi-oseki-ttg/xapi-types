@@ -11,6 +11,8 @@ namespace bracken_lrs.Models.xAPI
     {
         public static readonly string OBJECT_TYPE = "Activity";
         public string ObjectType { get; set; }
+        [JsonProperty("id")]
+        [BsonElement("id")]
         public Uri Id { get; set; }
         public ActivityDefinition Definition { get; set; }
 

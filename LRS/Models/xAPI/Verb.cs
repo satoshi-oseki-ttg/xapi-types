@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.Serialization;
 using bracken_lrs.DictionaryExtensions;
+using MongoDB.Bson.Serialization.Attributes;
 using Newtonsoft.Json;
 
 namespace bracken_lrs.Models.xAPI
 {
     public class Verb
     {
+        [JsonProperty("id")]
+        [BsonElement("id")]
         public Uri Id { get; set; }
         private Dictionary<string, string> display;
         public Dictionary<string, string> Display

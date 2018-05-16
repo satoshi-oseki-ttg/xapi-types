@@ -884,10 +884,25 @@ namespace bracken_lrs.Controllers
             {
                 return BadRequest("The agent parameter must be a valid JSON.");
             }
-            
+
             await _repositoryService.DeleteAgentProfile(agentObject, profileId);
 
             return NoContent();
+        }
+
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [HttpGet("activities")]
+        public async Task<IActionResult> GetActivity([FromQuery]string activityId)
+        {
+            if (string.IsNullOrEmpty(activityId))
+            {
+                return BadRequest("The activityId parameter must be supplied.");
+            }
+
+            var activity = await _repositoryService.GetActivity(activityId);
+
+            return Ok(activity);
         }
 
         [AllowAnonymous]

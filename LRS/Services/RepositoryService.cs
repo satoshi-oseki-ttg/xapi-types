@@ -797,5 +797,103 @@ namespace bracken_lrs.Services
 
             return deleteResult.IsAcknowledged;
         }
+
+        public async Task SaveAgentProfile(byte[] value, Agent agent, string profileId, string contentType)
+        {
+            if (contentType == "application/json")
+            {
+                var doc = await GetAgentProfileDocument(agent, profileId);
+                if (doc != null)
+                {
+                    if (doc.ContentType == "application/json") // Merge JSONs
+                    {
+                            var content = JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(doc.Content));
+                            var contentAdded = JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(value));
+                            content.Merge(contentAdded);
+                            value = Encoding.UTF8.GetBytes(content.ToString());
+                        
+                    }
+                    else
+                    {
+                        throw new Exception("POST agents/profile: The existing profile value must have ContentType application/json to update with JSON.");
+                    }
+                }
+            }
+
+            var profile = new AgentProfileDocument
+            {
+                Id = profileId,
+                Etag = DateTime.UtcNow.Ticks.ToString(),
+                Timestamp = DateTime.UtcNow,
+                Agent = agent,
+                ContentType = contentType,
+                Content = value
+            };
+            
+            var collection = _db.GetCollection<AgentProfileDocument>(agentProfileCollection);
+
+            await collection.FindOneAndReplaceAsync<AgentProfileDocument>
+            (
+                x =>
+                    x.Id == profileId &&
+                    x.Agent.Equals(agent),
+                profile,
+                new FindOneAndReplaceOptions<AgentProfileDocument>
+                {
+                    IsUpsert = true
+                }
+            );
+        }
+
+        public async Task<AgentProfileDocument> GetAgentProfileDocument(Agent agent, string profileId)
+        {
+            var collection = _db.GetCollection<AgentProfileDocument>(agentProfileCollection);
+            if (collection == null)
+            {
+                return null;
+            }
+
+            var doc = await collection.FindAsync
+            (
+                x => x.Id == profileId && x.Agent.Equals(agent)
+            );
+
+            return await doc.FirstOrDefaultAsync();
+        }
+
+        public async Task<IList<AgentProfileDocument>> GetAgentProfileDocuments(Agent agent, DateTime? since)
+        {
+            var collection = _db.GetCollection<AgentProfileDocument>(agentProfileCollection);
+            if (collection == null)
+            {
+                return null;
+            }
+
+            var doc = await collection.FindAsync
+            (
+                x => x.Agent.Equals(agent)
+                    && (since == null || x.Timestamp >= since)
+            );
+
+            return doc.ToList();
+        }
+
+        public async Task<bool> DeleteAgentProfile(Agent agent, string profileId)
+        {
+            var collection = _db.GetCollection<AgentProfileDocument>(agentProfileCollection);
+            if (collection == null)
+            {
+                return false;
+            }
+
+            var deleteResult = await collection.DeleteOneAsync
+            (
+                x =>
+                    x.Id == profileId &&
+                    x.Agent.Equals(agent)
+            );
+
+            return deleteResult.IsAcknowledged;
+        }
     }
 }

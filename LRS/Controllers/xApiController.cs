@@ -704,8 +704,189 @@ namespace bracken_lrs.Controllers
 
         [ProducesResponseType(204)]
         [HttpPost("agents/profile")]
-        public IActionResult PostAgentsProfile([FromBody]JObject jObject, [FromQuery]Guid agent)
+        public async Task<IActionResult> PostAgentsProfile([FromQuery]string agent, [FromQuery]string profileId)
         {
+            if (string.IsNullOrEmpty(agent))
+            {
+                return BadRequest("POST agents/profile: The agent parameter must be supplied.");
+            }
+
+            if (string.IsNullOrEmpty(profileId))
+            {
+                return BadRequest("POST agents/profile: The agent parameter must be supplied.");
+            }
+
+            Agent agentObject = null;
+            try
+            {
+                agentObject = JsonConvert.DeserializeObject<Agent>(agent);
+            }
+            catch (JsonException)
+            {
+                return BadRequest("The agent parameter must be a valid JSON.");
+            }
+
+            if (Request.ContentType == "application/json")
+            {
+                var profile = await new StreamContent(Request.Body).ReadAsByteArrayAsync();
+                try
+                {
+                    JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(profile));
+                    await _repositoryService.SaveAgentProfile(profile, agentObject, profileId, Request.ContentType);
+
+                    return NoContent();
+                }
+                catch (Exception)
+                {
+                    return BadRequest("POST agents/profile: The existing profile value must have ContentType application/json to update with JSON.");
+                }
+            }
+            else
+            {
+                return BadRequest("POST agents/profile: The ContentType must be 'application/json'.");
+            }
+        }
+
+        [ProducesResponseType(204)]
+        [HttpPut("agents/profile")]
+        public async Task<IActionResult> PutAgentsProfile([FromQuery]string agent, [FromQuery]string profileId)
+        {
+            if (string.IsNullOrEmpty(agent))
+            {
+                return BadRequest("PUT agents/profile: The agent parameter must be supplied.");
+            }
+
+            if (string.IsNullOrEmpty(profileId))
+            {
+                return BadRequest("PUT agents/profile: The agent parameter must be supplied.");
+            }
+
+            Agent agentObject = null;
+            try
+            {
+                agentObject = JsonConvert.DeserializeObject<Agent>(agent);
+            }
+            catch (JsonException)
+            {
+                return BadRequest("The agent parameter must be a valid JSON.");
+            }
+
+            var profile = await new StreamContent(Request.Body).ReadAsByteArrayAsync();
+            if (Request.ContentType == "application/json")
+            {
+                try
+                {
+                    JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(profile));
+                    await _repositoryService.SaveAgentProfile(profile, agentObject, profileId, Request.ContentType);
+
+                    return NoContent();
+                }
+                catch (JsonException)
+                {
+                    return BadRequest("PUT agents/profile: The state value must be a valid JSON.");
+                }
+            }
+            else
+            {
+                await _repositoryService.SaveAgentProfile(profile, agentObject, profileId, Request.ContentType);
+
+                return NoContent();
+            }
+        }
+
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [HttpGet("agents/profile")]
+        public async Task<IActionResult> GetAgentsProfile([FromQuery]string agent, [FromQuery]string profileId, [FromQuery]string since)
+        {
+            Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
+
+            DateTime? sinceDateTIme = null;
+            try
+            {
+                if (since != null)
+                {
+                    sinceDateTIme = DateTime.Parse(since);
+                }
+            }
+            catch (FormatException)
+            {
+                return BadRequest("The since parameter isn't a valid DateTime.");
+            }
+
+            if (string.IsNullOrEmpty(agent))
+            {
+                return BadRequest("GET agents/profile: The agent parameter must be supplied.");
+            }
+
+            Agent agentObject = null;
+            try
+            {
+                agentObject = JsonConvert.DeserializeObject<Agent>(agent);
+            }
+            catch (JsonException)
+            {
+                return BadRequest("The agent parameter must be a valid JSON.");
+            }
+
+            if (profileId != null)
+            {
+                var doc = await _repositoryService.GetAgentProfileDocument(agentObject, profileId);
+                var profileAsString = doc.Content != null ? System.Text.Encoding.UTF8.GetString(doc.Content) : null;
+                if (profileAsString == null)
+                {
+                    return NotFound();
+                }
+
+                if (doc.ContentType == "application/json")
+                {
+                    return Ok(JsonConvert.DeserializeObject<JObject>(profileAsString));
+                }
+                else
+                {
+                    return Ok(profileAsString);
+                }
+            }
+            else
+            {
+                var docs = await _repositoryService.GetAgentProfileDocuments(agentObject, sinceDateTIme);
+                var content = new List<string>(); // returns ids
+                foreach (var profile in docs)
+                {
+                    content.Add(profile.Id);
+                }
+
+                return Ok(content);
+            }
+        }
+
+
+        [ProducesResponseType(204)]
+        [HttpDelete("agents/profile")]
+        public async Task<IActionResult> DeleteAgentProfile([FromQuery]string agent, [FromQuery]string profileId)
+        {
+            if (string.IsNullOrEmpty(agent))
+            {
+                return BadRequest("DELETE agents/profile: The agent parameter must be supplied.");
+            }
+
+            if (string.IsNullOrEmpty(profileId))
+            {
+                return BadRequest("DELETE agents/profile: The agent parameter must be supplied.");
+            }
+
+            Agent agentObject = null;
+            try
+            {
+                agentObject = JsonConvert.DeserializeObject<Agent>(agent);
+            }
+            catch (JsonException)
+            {
+                return BadRequest("The agent parameter must be a valid JSON.");
+            }
+            
+            await _repositoryService.DeleteAgentProfile(agentObject, profileId);
+
             return NoContent();
         }
 

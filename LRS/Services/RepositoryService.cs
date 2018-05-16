@@ -32,6 +32,8 @@ namespace bracken_lrs.Services
         private const string dbName = "lrs_dev"; // This should be per site and each site has collections, states, statements etc?
         private const string statementCollection = "statements";
         private const string stateCollection = "states";
+        private const string activityProfileCollection = "activities";
+        private const string agentProfileCollection = "agents";
         private readonly IxApiValidationService _xApiValidationService;
         private readonly ISignedStatementService _signedStatementService;
 
@@ -690,6 +692,107 @@ namespace bracken_lrs.Services
                     x.Id == stateId &&
                     x.Activity.Id == new Uri(activityId) &&
                     x.Agent.Account.Name == agent.Account.Name
+            );
+
+            return deleteResult.IsAcknowledged;
+        }
+
+        public async Task SaveActivityProfile(byte[] value, string activityId, string profileId, string contentType)
+        {
+            if (contentType == "application/json")
+            {
+                var doc = await GetActivityProfileDocument(activityId, profileId);
+                if (doc != null)
+                {
+                    if (doc.ContentType == "application/json") // Merge JSONs
+                    {
+                            var content = JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(doc.Content));
+                            var contentAdded = JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(value));
+                            content.Merge(contentAdded);
+                            value = Encoding.UTF8.GetBytes(content.ToString());
+                        
+                    }
+                    else
+                    {
+                        throw new Exception("POST activities/profile: The existing profile value must have ContentType application/json to update with JSON.");
+                    }
+                }
+            }
+
+            var profile = new ActivityProfileDocument
+            {
+                Id = profileId,
+                Etag = DateTime.UtcNow.Ticks.ToString(),
+                Timestamp = DateTime.UtcNow,
+                Activity = new Activity
+                {
+                    Id = new Uri(activityId)
+                },
+                ContentType = contentType,
+                Content = value
+            };
+            
+            var collection = _db.GetCollection<ActivityProfileDocument>(activityProfileCollection);
+
+            await collection.FindOneAndReplaceAsync<ActivityProfileDocument>
+            (
+                x =>
+                    x.Id == profileId &&
+                    x.Activity.Id == new Uri(activityId),
+                profile,
+                new FindOneAndReplaceOptions<ActivityProfileDocument>
+                {
+                    IsUpsert = true
+                }
+            );
+        }
+
+        public async Task<ActivityProfileDocument> GetActivityProfileDocument(string activityId, string profileId)
+        {
+            var collection = _db.GetCollection<ActivityProfileDocument>(activityProfileCollection);
+            if (collection == null)
+            {
+                return null;
+            }
+
+            var doc = await collection.FindAsync
+            (
+                x => x.Id == profileId && x.Activity.Id == new Uri(activityId)
+            );
+
+            return await doc.FirstOrDefaultAsync();
+        }
+
+        public async Task<IList<ActivityProfileDocument>> GetActivityProfileDocuments(string activityId, DateTime? since)
+        {
+            var collection = _db.GetCollection<ActivityProfileDocument>(activityProfileCollection);
+            if (collection == null)
+            {
+                return null;
+            }
+
+            var doc = await collection.FindAsync
+            (
+                x => x.Activity.Id == new Uri(activityId)
+                    && (since == null || x.Timestamp >= since)
+            );
+
+            return doc.ToList();
+        }
+
+        public async Task<bool> DeleteActivityProfile(string activityId, string profileId)
+        {
+            var collection = _db.GetCollection<ActivityProfileDocument>(activityProfileCollection);
+            if (collection == null)
+            {
+                return false;
+            }
+
+            var deleteResult = await collection.DeleteOneAsync
+            (
+                x =>
+                    x.Id == profileId &&
+                    x.Activity.Id == new Uri(activityId)
             );
 
             return deleteResult.IsAcknowledged;

@@ -27,6 +27,18 @@ namespace bracken_lrs.Middleware
                 return;
             }
 
+            string ifMatch = context.Request.Headers["If-Match"];
+            string ifNoneMatch = context.Request.Headers["If-None-Match"];
+            if (context.Request.Path.Value.EndsWith("profile")
+                && context.Request.Method == "PUT"
+                && ifMatch == null
+                && ifNoneMatch == null)
+            {
+                context.Response.StatusCode = 400; // Bad request
+                await context.Response.WriteAsync($"{context.Request.Method} {context.Request.Path.Value} missing ETag header.");
+                return;                
+            }
+
             string xApiVersion = context.Request.Headers["X-Experience-API-Version"];
             var versionOneRegex = new Regex("^1\\.0(\\.[0-9])*$");
             if (xApiVersion == null || !versionOneRegex.IsMatch(xApiVersion))

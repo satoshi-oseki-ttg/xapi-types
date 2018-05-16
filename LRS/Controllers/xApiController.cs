@@ -544,8 +544,147 @@ namespace bracken_lrs.Controllers
 
         [ProducesResponseType(204)]
         [HttpPost("activities/profile")]
-        public IActionResult PostActivityProfile([FromBody]JObject jObject, [FromQuery]Guid activityId)
+        public async Task<IActionResult> PostActivityProfile([FromQuery]string activityId, [FromQuery]string profileId)
         {
+            if (string.IsNullOrEmpty(activityId))
+            {
+                return BadRequest("POST activities/profile: The activityId parameter must be supplied.");
+            }
+
+            if (string.IsNullOrEmpty(profileId))
+            {
+                return BadRequest("POST activities/profile: The agent parameter must be supplied.");
+            }
+
+            if (Request.ContentType == "application/json")
+            {
+                var profile = await new StreamContent(Request.Body).ReadAsByteArrayAsync();
+                try
+                {
+                    JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(profile));
+                    await _repositoryService.SaveActivityProfile(profile, activityId, profileId, Request.ContentType);
+
+                    return NoContent();
+                }
+                catch (Exception)
+                {
+                    return BadRequest("POST activities/profile: The existing profile value must have ContentType application/json to update with JSON.");
+                }
+            }
+            else
+            {
+                return BadRequest("POST activities/profile: The ContentType must be 'application/json'.");
+            }
+        }
+
+        [ProducesResponseType(204)]
+        [HttpPut("activities/profile")]
+        public async Task<IActionResult> PutActivityProfile([FromQuery]string activityId, [FromQuery]string profileId)
+        {
+            if (string.IsNullOrEmpty(activityId))
+            {
+                return BadRequest("PUT activities/profile: The activityId parameter must be supplied.");
+            }
+
+            if (string.IsNullOrEmpty(profileId))
+            {
+                return BadRequest("PUT activities/profile: The agent parameter must be supplied.");
+            }
+
+            var profile = await new StreamContent(Request.Body).ReadAsByteArrayAsync();
+            if (Request.ContentType == "application/json")
+            {
+                try
+                {
+                    JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(profile));
+                    await _repositoryService.SaveActivityProfile(profile, activityId, profileId, Request.ContentType);
+
+                    return NoContent();
+                }
+                catch (JsonException)
+                {
+                    return BadRequest("PUT activities/profile: The state value must be a valid JSON.");
+                }
+            }
+            else
+            {
+                await _repositoryService.SaveActivityProfile(profile, activityId, profileId, Request.ContentType);
+
+                return NoContent();
+            }
+        }
+
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [HttpGet("activities/profile")]
+        public async Task<IActionResult> GetActivityProfile([FromQuery]string activityId, [FromQuery]string profileId, [FromQuery]string since)
+        {
+            Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
+
+            DateTime? sinceDateTIme = null;
+            try
+            {
+                if (since != null)
+                {
+                    sinceDateTIme = DateTime.Parse(since);
+                }
+            }
+            catch (FormatException)
+            {
+                return BadRequest("The since parameter isn't a valid DateTime.");
+            }
+
+            if (string.IsNullOrEmpty(activityId))
+            {
+                return BadRequest("GET activities/profile: The activityId parameter must be supplied.");
+            }
+            if (profileId != null)
+            {
+                var doc = await _repositoryService.GetActivityProfileDocument(activityId, profileId);
+                var profileAsString = doc.Content != null ? System.Text.Encoding.UTF8.GetString(doc.Content) : null;
+                if (profileAsString == null)
+                {
+                    return NotFound();
+                }
+
+                if (doc.ContentType == "application/json")
+                {
+                    return Ok(JsonConvert.DeserializeObject<JObject>(profileAsString));
+                }
+                else
+                {
+                    return Ok(profileAsString);
+                }
+            }
+            else
+            {
+                var docs = await _repositoryService.GetActivityProfileDocuments(activityId, sinceDateTIme);
+                var content = new List<string>(); // returns ids
+                foreach (var profile in docs)
+                {
+                    content.Add(profile.Id);
+                }
+
+                return Ok(content);
+            }
+        }
+
+        [ProducesResponseType(204)]
+        [HttpDelete("activities/profile")]
+        public async Task<IActionResult> DeleteActivityProfile([FromQuery]string activityId, [FromQuery]string profileId)
+        {
+            if (string.IsNullOrEmpty(activityId))
+            {
+                return BadRequest("DELETE activities/profile: The activityId parameter must be supplied.");
+            }
+
+            if (string.IsNullOrEmpty(profileId))
+            {
+                return BadRequest("DELETE activities/profile: The agent parameter must be supplied.");
+            }
+
+            await _repositoryService.DeleteActivityProfile(activityId, profileId);
+
             return NoContent();
         }
 

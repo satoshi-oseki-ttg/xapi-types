@@ -568,7 +568,7 @@ namespace bracken_lrs.Controllers
         [HttpGet("about")]
         public IActionResult GetAbout()
         {
-            return Ok("Bracken LRS v1.0");
+            return Ok(new { version = new [] { "1.0.3" }});
         }
     }
 }

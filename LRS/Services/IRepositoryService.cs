@@ -27,10 +27,11 @@ namespace bracken_lrs.Services
             string format,
             bool ascending
         );
-        Task SaveState(byte[] value, string stateId, string activityId, Agent agent, string contentType);
+        Task SaveState(byte[] value, string stateId, string activityId, Agent agent, Guid? registration, string contentType);
         Task<string> GetState(string stateId, string activityId, Agent agent);
-        Task<StateDocument> GetStateDocument(string stateId, string activityId, Agent agent);
-        Task<bool> DeleteStateDocument(string stateId, string activityId, Agent agent);
+        Task<StateDocument> GetStateDocument(string stateId, string activityId, Agent agent, Guid? registration);
+        Task<IList<StateDocument>> GetStateDocuments(string activityId, Agent agent, Guid? registration, DateTime? since = null);
+        Task<bool> DeleteStateDocument(string stateId, string activityId, Agent agent, Guid? registration);
         Task SaveActivityProfile(byte[] value, string activityId, string profileId, string contentType);
         Task<ActivityProfileDocument> GetActivityProfileDocument(string activityId, string profileId);
         Task<IList<ActivityProfileDocument>> GetActivityProfileDocuments(string activityId, DateTime? since);

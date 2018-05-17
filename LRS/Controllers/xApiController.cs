@@ -400,8 +400,17 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [HttpPost("activities/state")]
-        public async Task<IActionResult> PostState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
+        public async Task<IActionResult> PostState(
+            [FromQuery]string stateId,
+            [FromQuery]string activityId,
+            [FromQuery]string agent,
+            [FromQuery]string registration)
         {
+            if (string.IsNullOrEmpty(stateId))
+            {
+                return BadRequest("POST activities/state: The stateId parameter must be supplied.");
+            }
+            
             if (string.IsNullOrEmpty(activityId))
             {
                 return BadRequest("POST activities/state: The activityId parameter must be supplied.");
@@ -412,6 +421,19 @@ namespace bracken_lrs.Controllers
                 return BadRequest("POST activities/state: The agent parameter must be supplied.");
             }
 
+            Guid? registrationGuid = null;
+            try
+            {
+                if (registration != null)
+                {
+                    registrationGuid = Guid.Parse(registration);
+                }
+            }
+            catch (FormatException)
+            {
+                return BadRequest("POST activities/state: The registration parameter must be a valid UUID.");
+            }
+
             if (Request.ContentType == "application/json")
             {
                 var stateContent = await new StreamContent(Request.Body).ReadAsByteArrayAsync();
@@ -419,13 +441,17 @@ namespace bracken_lrs.Controllers
                 {
                     JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(stateContent));
                     var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
-                    await _repositoryService.SaveState(stateContent, stateId, activityId, agentObject, Request.ContentType);
+                    await _repositoryService.SaveState(stateContent, stateId, activityId, agentObject, registrationGuid, Request.ContentType);
 
                     return NoContent();
                 }
                 catch (JsonException)
                 {
                     return BadRequest("POST activities/state: The state value must be a valid JSON.");
+                }
+                catch (Exception e)
+                {
+                    return BadRequest(e.ToString());
                 }
             }
             else
@@ -449,8 +475,17 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [HttpPut("activities/state")]
-        public async Task<IActionResult> PutState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
+        public async Task<IActionResult> PutState(
+            [FromQuery]string stateId,
+            [FromQuery]string activityId,
+            [FromQuery]string agent,
+            [FromQuery]string registration)
         {
+            if (string.IsNullOrEmpty(stateId))
+            {
+                return BadRequest("PUT activities/state: The stateId parameter must be supplied.");
+            }
+
             if (string.IsNullOrEmpty(activityId))
             {
                 return BadRequest("PUT activities/state: The activityId parameter must be supplied.");
@@ -459,6 +494,19 @@ namespace bracken_lrs.Controllers
             if (string.IsNullOrEmpty(agent))
             {
                 return BadRequest("PUT activities/state: The agent parameter must be supplied.");
+            }
+
+            Guid? registrationGuid = null;
+            try
+            {
+                if (registration != null)
+                {
+                    registrationGuid = Guid.Parse(registration);
+                }
+            }
+            catch (FormatException)
+            {
+                return BadRequest("PUT activities/state: The registration parameter must be a valid UUID.");
             }
 
             using (var ms = new MemoryStream(2048))
@@ -470,7 +518,7 @@ namespace bracken_lrs.Controllers
                     var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
                     //_xApiService.SaveState(value, stateId, activityId, agent);
                     //_jobQueueService.EnqueueState(value, stateId, activityId, agent);
-                    await  _repositoryService.SaveState(value, stateId, activityId, agentObject, Request.ContentType);
+                    await  _repositoryService.SaveState(value, stateId, activityId, agentObject, registrationGuid, Request.ContentType);
                     return NoContent();
                 }
                 catch (JsonException)
@@ -483,7 +531,13 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [HttpGet("activities/state")]
-        public async Task<IActionResult> GetState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
+        public async Task<IActionResult> GetState(
+            [FromQuery]string stateId,
+            [FromQuery]string activityId,
+            [FromQuery]string agent,
+            [FromQuery]string since,
+            [FromQuery]string registration
+        )
         {
             Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
 
@@ -497,27 +551,84 @@ namespace bracken_lrs.Controllers
                 return BadRequest("GET activities/state: The agent parameter must be supplied.");
             }
 
-            var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
-            var doc = await _repositoryService.GetStateDocument(stateId, activityId, agentObject);
-            var stateAsString = doc.Content != null ? System.Text.Encoding.UTF8.GetString(doc.Content) : null;
-            if (stateAsString == null)
+            Guid? registrationGuid = null;
+            try
             {
-                return NotFound();
+                if (registration != null)
+                {
+                    registrationGuid = Guid.Parse(registration);
+                }
+            }
+            catch (FormatException)
+            {
+                return BadRequest("GET activities/state: The registration parameter must be a valid UUID.");
             }
 
-            if (doc.ContentType == "application/json")
+            DateTime? sinceDateTime = null;
+            try
             {
-                return Ok(JsonConvert.DeserializeObject<JObject>(stateAsString));
+                if (since != null)
+                {
+                    sinceDateTime = DateTime.Parse(since);
+                }
+            }
+            catch (FormatException)
+            {
+                return BadRequest("GET activities/state: The since parameter isn't a valid DateTime.");
+            }
+
+            Agent agentObject = null;
+            try
+            {
+                agentObject = JsonConvert.DeserializeObject<Agent>(agent);
+                if (!agentObject.IsValid())
+                {
+                    return BadRequest("GET activities/state: The agent parameter must be be uniquely identifiable.");
+                }
+            }
+            catch (JsonException)
+            {
+                return BadRequest("GET activities/state: The agent parameter must be a valid JSON.");
+            }
+
+            if (stateId != null)
+            {
+                var doc = await _repositoryService.GetStateDocument(stateId, activityId, agentObject, registrationGuid);
+                var stateAsString = doc?.Content != null ? System.Text.Encoding.UTF8.GetString(doc.Content) : null;
+                if (stateAsString == null)
+                {
+                    return NotFound();
+                }
+
+                if (doc.ContentType == "application/json")
+                {
+                    return Ok(JsonConvert.DeserializeObject<JObject>(stateAsString));
+                }
+                else
+                {
+                    return Ok(stateAsString);
+                }
             }
             else
             {
-                return Ok(stateAsString);
+                var docs = await _repositoryService.GetStateDocuments(activityId, agentObject, registrationGuid, sinceDateTime);
+                var states = new List<string>(); // returns a list of ids
+                foreach (var doc in docs)
+                {
+                    states.Add(doc.Id);
+                }
+
+                return Ok(states);
             }
         }
 
         [ProducesResponseType(204)]
         [HttpDelete("activities/state")]
-        public async Task<IActionResult> DeleteState([FromQuery]string stateId, [FromQuery]string activityId, [FromQuery]string agent)
+        public async Task<IActionResult> DeleteState(
+            [FromQuery]string stateId,
+            [FromQuery]string activityId,
+            [FromQuery]string agent,
+            [FromQuery]string registration)
         {
             if (string.IsNullOrEmpty(activityId))
             {
@@ -529,8 +640,34 @@ namespace bracken_lrs.Controllers
                 return BadRequest("DELETE activities/state: The agent parameter must be supplied.");
             }
 
-            var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
-            var isAcknowledged = await _repositoryService.DeleteStateDocument(stateId, activityId, agentObject);
+            Agent agentObject = null;
+            try
+            {
+                agentObject = JsonConvert.DeserializeObject<Agent>(agent);
+                if (!agentObject.IsValid())
+                {
+                    return BadRequest("GET activities/state: The agent parameter must be be uniquely identifiable.");
+                }
+            }
+            catch (JsonException)
+            {
+                return BadRequest("GET activities/state: The agent parameter must be a valid JSON.");
+            }
+
+            Guid? registrationGuid = null;
+            try
+            {
+                if (registration != null)
+                {
+                    registrationGuid = Guid.Parse(registration);
+                }
+            }
+            catch (FormatException)
+            {
+                return BadRequest("GET activities/state: The registration parameter must be a valid UUID.");
+            }
+
+            var isAcknowledged = await _repositoryService.DeleteStateDocument(stateId, activityId, agentObject, registrationGuid);
 
             return NoContent();
         }
@@ -621,12 +758,12 @@ namespace bracken_lrs.Controllers
         {
             Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
 
-            DateTime? sinceDateTIme = null;
+            DateTime? sinceDateTime = null;
             try
             {
                 if (since != null)
                 {
-                    sinceDateTIme = DateTime.Parse(since);
+                    sinceDateTime = DateTime.Parse(since);
                 }
             }
             catch (FormatException)
@@ -658,7 +795,7 @@ namespace bracken_lrs.Controllers
             }
             else
             {
-                var docs = await _repositoryService.GetActivityProfileDocuments(activityId, sinceDateTIme);
+                var docs = await _repositoryService.GetActivityProfileDocuments(activityId, sinceDateTime);
                 var content = new List<string>(); // returns ids
                 foreach (var profile in docs)
                 {

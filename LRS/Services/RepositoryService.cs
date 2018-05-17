@@ -584,32 +584,43 @@ namespace bracken_lrs.Services
             return false;
         }
 
-        public async Task SaveState(byte[] value, string stateId, string activityId, Agent agent, string contentType)
+        public async Task SaveState(byte[] value, string stateId, string activityId, Agent agent, Guid? registration, string contentType)
         {
             if (value == null)
             {
                 return;
             }
 
-            var doc = await GetStateDocument(stateId, activityId, agent);
-            if (doc != null && doc.ContentType == "application/json"
-                && contentType == "application/json") // Merge JSONs
+            var doc = await GetStateDocument(stateId, activityId, agent, registration);
+            if (contentType == "application/json")
             {
-                var content = JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(doc.Content));
-                var contentAdded = JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(value));
-                content.Merge(contentAdded);
-                value = Encoding.UTF8.GetBytes(content.ToString());
+                if (doc != null)
+                {
+                    if (doc.ContentType == "application/json") // Merge JSONs
+                    {
+                        var content = JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(doc.Content));
+                        var contentAdded = JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(value));
+                        content.Merge(contentAdded);
+                        value = Encoding.UTF8.GetBytes(content.ToString());
+                    }
+                    else
+                    {
+                        throw new Exception("POST state: The existing state value must have ContentType application/json to update with JSON.");
+                    }
+                }
             }
             
             var state = new StateDocument
             {
                 Id = stateId,
                 Etag = DateTime.UtcNow.Ticks.ToString(),
+                Timestamp = DateTime.UtcNow,
                 Activity = new Activity
                 {
                     Id = new Uri(activityId)
                 },
                 Agent = agent,
+                Registration = registration,
                 ContentType = contentType,
                 Content = value
             };
@@ -658,7 +669,7 @@ namespace bracken_lrs.Services
             return await Task.FromResult(stateAsString);
         }
 
-        public async Task<StateDocument> GetStateDocument(string stateId, string activityId, Agent agent)
+        public async Task<StateDocument> GetStateDocument(string stateId, string activityId, Agent agent, Guid? registration)
         {
             var collection = _db.GetCollection<StateDocument>(stateCollection);
             if (collection == null)
@@ -669,16 +680,37 @@ namespace bracken_lrs.Services
             var cursor = await collection.FindAsync
             (
                 x =>
-                    x.Id == stateId &&
-                    x.Activity.Id == new Uri(activityId) &&
-                    x.Agent.Account.Name == agent.Account.Name
+                    (stateId == null || x.Id == stateId)
+                    && x.Activity.Id == new Uri(activityId)
+                    && x.Agent.Account.Name == agent.Account.Name
+                    && (registration == null || x.Registration == registration)
             );
             var state = await cursor.FirstOrDefaultAsync();
 
             return state;
         }
 
-        public async Task<bool> DeleteStateDocument(string stateId, string activityId, Agent agent)
+        public async Task<IList<StateDocument>> GetStateDocuments(string activityId, Agent agent, Guid? registration, DateTime? since = null)
+        {
+            var collection = _db.GetCollection<StateDocument>(stateCollection);
+            if (collection == null)
+            {
+                return null;
+            }
+
+            var cursor = await collection.FindAsync
+            (
+                x => x.Activity.Id == new Uri(activityId)
+                    && x.Agent.Account.Name == agent.Account.Name
+                    && (registration == null || x.Registration == registration)
+                    && (since == null || x.Timestamp >= since)
+            );
+            var states = cursor.ToList();
+
+            return states;
+        }
+
+        public async Task<bool> DeleteStateDocument(string stateId, string activityId, Agent agent, Guid? registration)
         {
             var collection = _db.GetCollection<StateDocument>(stateCollection);
             if (collection == null)
@@ -689,9 +721,10 @@ namespace bracken_lrs.Services
             var deleteResult = await collection.DeleteOneAsync
             (
                 x =>
-                    x.Id == stateId &&
-                    x.Activity.Id == new Uri(activityId) &&
-                    x.Agent.Account.Name == agent.Account.Name
+                    (stateId == null || x.Id == stateId)
+                    && x.Activity.Id == new Uri(activityId)
+                    && x.Agent.Account.Name == agent.Account.Name
+                    && (registration == null || x.Registration == registration)
             );
 
             return deleteResult.IsAcknowledged;
@@ -811,7 +844,6 @@ namespace bracken_lrs.Services
                             var contentAdded = JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(value));
                             content.Merge(contentAdded);
                             value = Encoding.UTF8.GetBytes(content.ToString());
-                        
                     }
                     else
                     {

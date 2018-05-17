@@ -980,6 +980,10 @@ namespace bracken_lrs.Controllers
                 {
                     return StatusCode(409, "PUT agents/profile request is received without either header for a resource that already exists.");
                 }
+                else
+                {
+                    return BadRequest("PUT agents/profile request is received without either header.");
+                }
             }
 
             var profile = await new StreamContent(Request.Body).ReadAsByteArrayAsync();

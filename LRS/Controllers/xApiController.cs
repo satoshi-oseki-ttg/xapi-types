@@ -19,6 +19,7 @@ using System.Web;
 using bracken_lrs.Attributes;
 using bracken_lrs.Model;
 using bracken_lrs.Models.xAPI.Documents;
+using System.Security.Cryptography;
 
 namespace bracken_lrs.Controllers
 {
@@ -30,6 +31,7 @@ namespace bracken_lrs.Controllers
         private readonly IJobQueueService _jobQueueService;
         private readonly IRepositoryService _repositoryService;
         private readonly ISignedStatementService _signedStatementService;
+        private readonly IHttpService _httpService;
         private static readonly Uri completed = new Uri("http://adlnet.gov/expapi/verbs/completed");
         private static readonly HttpClient httpClient = new HttpClient();
         private readonly string[] alternateRequestHeaders = new []
@@ -37,23 +39,22 @@ namespace bracken_lrs.Controllers
             "Authorization", "X-Experience-API-Version", "Content-Type", "Content-Length", "If-Match", "If-None-Match"
         };
 
-        public xApiController
-        (
+        public xApiController(
             IxApiService xApiService,
             IJobQueueService jobQueueService,
             IRepositoryService repositoryService,
-            ISignedStatementService signedStatementService
-        )
+            ISignedStatementService signedStatementService,
+            IHttpService httpService)
         {
             _xApiService = xApiService;
             _jobQueueService = jobQueueService;
             _repositoryService = repositoryService;
             _signedStatementService = signedStatementService;
+            _httpService = httpService;
         }
 
         [HttpGet("statements")]
-        public async Task<IActionResult> GetStatement
-        (
+        public async Task<IActionResult> GetStatement(
             [FromQuery] Guid statementId,
             [FromQuery] Guid voidedStatementId,
             [FromQuery] string agent, // JSON
@@ -67,8 +68,7 @@ namespace bracken_lrs.Controllers
             [FromQuery] int limit,
             [FromQuery] string format, // "ids" | "exact" | "canonical"
             [FromQuery] bool attachments,
-            [FromQuery] bool ascending
-        )
+            [FromQuery] bool ascending)
         {
             Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
 
@@ -623,6 +623,7 @@ namespace bracken_lrs.Controllers
         }
 
         [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
         [HttpDelete("activities/state")]
         public async Task<IActionResult> DeleteState(
             [FromQuery]string stateId,
@@ -680,6 +681,7 @@ namespace bracken_lrs.Controllers
         }
 
         [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
         [HttpPost("activities/profile")]
         public async Task<IActionResult> PostActivityProfile([FromQuery]string activityId, [FromQuery]string profileId)
         {
@@ -715,6 +717,9 @@ namespace bracken_lrs.Controllers
         }
 
         [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(409)]
+        [ProducesResponseType(412)]
         [HttpPut("activities/profile")]
         public async Task<IActionResult> PutActivityProfile([FromQuery]string activityId, [FromQuery]string profileId)
         {
@@ -726,6 +731,40 @@ namespace bracken_lrs.Controllers
             if (string.IsNullOrEmpty(profileId))
             {
                 return BadRequest("PUT activities/profile: The agent parameter must be supplied.");
+            }
+
+            var ifMatchHeader = Request.Headers["If-Match"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(ifMatchHeader))
+            {
+                var saved = await _repositoryService.GetActivityProfileDocument(activityId, profileId);
+                var etag = _httpService.GetETag(System.Text.Encoding.UTF8.GetString(saved.Content));
+                if (ifMatchHeader != etag)
+                {
+                    return StatusCode(412, "PUT activities/profile request is received without either header for a resource that already exists.");
+                }
+            }
+
+            var ifNoneMatchHeader = Request.Headers["If-None-Match"].FirstOrDefault();
+            if (ifNoneMatchHeader == "*")
+            {
+                var saved = await _repositoryService.GetActivityProfileDocument(activityId, profileId);
+                if (saved != null)
+                {
+                    return StatusCode(412, "PUT activities/profile request is received without either header for a resource that already exists.");
+                }
+            }
+
+            if (string.IsNullOrEmpty(ifMatchHeader) && string.IsNullOrEmpty(ifNoneMatchHeader))
+            {
+                var saved = await _repositoryService.GetActivityProfileDocument(activityId, profileId);
+                if (saved != null)
+                {
+                    return StatusCode(409, "PUT activities/profile request is received without either header for a resource that already exists.");
+                }
+                else
+                {
+                    return BadRequest("PUT activities/profile request is received without either header.");
+                }
             }
 
             var profile = await new StreamContent(Request.Body).ReadAsByteArrayAsync();
@@ -754,7 +793,7 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [HttpGet("activities/profile")]
-        public async Task<IActionResult> GetActivityProfile([FromQuery]string activityId, [FromQuery]string profileId, [FromQuery]string since)
+        public async Task<IActionResult> GetActivityProfile([FromQuery]string activityId, [FromQuery]string profileId, [FromQuery]string since = null)
         {
             Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
 
@@ -784,6 +823,7 @@ namespace bracken_lrs.Controllers
                     return NotFound();
                 }
 
+                Response.Headers.Add("ETag", _httpService.GetETag(profileAsString));
                 if (doc.ContentType == "application/json")
                 {
                     return Ok(JsonConvert.DeserializeObject<JObject>(profileAsString));
@@ -802,6 +842,7 @@ namespace bracken_lrs.Controllers
                     content.Add(profile.Id);
                 }
 
+                Response.Headers.Add("ETag", _httpService.GetETag(content.ToArray()));
                 return Ok(content);
             }
         }
@@ -885,6 +926,9 @@ namespace bracken_lrs.Controllers
         }
 
         [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(409)]
+        [ProducesResponseType(412)]
         [HttpPut("agents/profile")]
         public async Task<IActionResult> PutAgentsProfile([FromQuery]string agent, [FromQuery]string profileId)
         {
@@ -905,7 +949,37 @@ namespace bracken_lrs.Controllers
             }
             catch (JsonException)
             {
-                return BadRequest("The agent parameter must be a valid JSON.");
+                return BadRequest("PUT agents/profile: The agent parameter must be a valid JSON.");
+            }
+
+            var ifMatchHeader = Request.Headers["If-Match"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(ifMatchHeader))
+            {
+                var saved = await _repositoryService.GetAgentProfileDocument(agentObject, profileId);
+                var etag = _httpService.GetETag(System.Text.Encoding.UTF8.GetString(saved.Content));
+                if (ifMatchHeader != etag)
+                {
+                    return StatusCode(412, "PUT agents/profile request is received without either header for a resource that already exists.");
+                }
+            }
+
+            var ifNoneMatchHeader = Request.Headers["If-None-Match"].FirstOrDefault();
+            if (ifNoneMatchHeader == "*")
+            {
+                var saved = await _repositoryService.GetAgentProfileDocument(agentObject, profileId);
+                if (saved != null)
+                {
+                    return StatusCode(412, "PUT agents/profile equest is received without either header for a resource that already exists.");
+                }
+            }
+
+            if (string.IsNullOrEmpty(ifMatchHeader) && string.IsNullOrEmpty(ifNoneMatchHeader))
+            {
+                var saved = await _repositoryService.GetAgentProfileDocument(agentObject, profileId);
+                if (saved != null)
+                {
+                    return StatusCode(409, "PUT agents/profile request is received without either header for a resource that already exists.");
+                }
             }
 
             var profile = await new StreamContent(Request.Body).ReadAsByteArrayAsync();
@@ -975,6 +1049,7 @@ namespace bracken_lrs.Controllers
                     return NotFound();
                 }
 
+                Response.Headers.Add("ETag", _httpService.GetETag(profileAsString));
                 if (doc.ContentType == "application/json")
                 {
                     return Ok(JsonConvert.DeserializeObject<JObject>(profileAsString));
@@ -992,6 +1067,7 @@ namespace bracken_lrs.Controllers
                 {
                     content.Add(profile.Id);
                 }
+                Response.Headers.Add("ETag", _httpService.GetETag(content.ToArray()));
 
                 return Ok(content);
             }

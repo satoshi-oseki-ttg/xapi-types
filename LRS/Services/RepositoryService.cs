@@ -793,7 +793,7 @@ namespace bracken_lrs.Services
                 x => x.Id == profileId && x.Activity.Id == new Uri(activityId)
             );
 
-            return await doc.FirstOrDefaultAsync();
+            return await doc?.FirstOrDefaultAsync();
         }
 
         public async Task<IList<ActivityProfileDocument>> GetActivityProfileDocuments(string activityId, DateTime? since)

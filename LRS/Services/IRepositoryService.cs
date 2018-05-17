@@ -34,7 +34,7 @@ namespace bracken_lrs.Services
         Task<bool> DeleteStateDocument(string stateId, string activityId, Agent agent, Guid? registration);
         Task SaveActivityProfile(byte[] value, string activityId, string profileId, string contentType);
         Task<ActivityProfileDocument> GetActivityProfileDocument(string activityId, string profileId);
-        Task<IList<ActivityProfileDocument>> GetActivityProfileDocuments(string activityId, DateTime? since);
+        Task<IList<ActivityProfileDocument>> GetActivityProfileDocuments(string activityId, DateTime? since = null);
         Task<bool> DeleteActivityProfile(string activityId, string profileId);
         Task SaveAgentProfile(byte[] value, Agent agent, string profileId, string contentType);
         Task<AgentProfileDocument> GetAgentProfileDocument(Agent agent, string profileId);

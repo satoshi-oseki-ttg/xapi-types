@@ -113,11 +113,20 @@ namespace bracken_lrs.Controllers
                     : null;
                 var result = _repositoryService.GetStatements
                     (agentObject, verb, activity, registration, limit, since, until, acceptLanguages, format, ascending);
-                if (limit > 0 || since != null && since > DateTime.MinValue || attachments)
+                if (limit > 0 || since != null && since > DateTime.MinValue)
                 {
                     var lastStatementStored = result.Statements.First().Stored.ToString("o");
                     result.More = $"/tcapi/statements?since={lastStatementStored}";
                 }
+
+                if (attachments) // return statements in multipart format
+                {
+                    var multipartContent = _httpService.CreateMultipartContent(result);
+                    Request.HttpContext.Response.ContentType = multipartContent.Headers.ContentType.ToString();
+                    var content = await multipartContent.ReadAsStreamAsync();
+                    return Ok(content);
+                }
+
                 return Ok(result);
             }
 

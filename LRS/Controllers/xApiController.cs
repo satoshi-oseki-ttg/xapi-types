@@ -113,9 +113,9 @@ namespace bracken_lrs.Controllers
                     : null;
                 var result = _repositoryService.GetStatements
                     (agentObject, verb, activity, registration, limit, since, until, acceptLanguages, format, ascending);
+                var lastStatementStored = result.Statements.First().Stored.ToString("o");
                 if (limit > 0 || since != null && since > DateTime.MinValue)
                 {
-                    var lastStatementStored = result.Statements.First().Stored.ToString("o");
                     result.More = $"/tcapi/statements?since={lastStatementStored}";
                 }
 
@@ -127,6 +127,7 @@ namespace bracken_lrs.Controllers
                     return Ok(content);
                 }
 
+                Response.Headers.Add("Last-Modified", lastStatementStored);
                 return Ok(result);
             }
 
@@ -137,6 +138,7 @@ namespace bracken_lrs.Controllers
                 return NotFound();
             }
 
+            Response.Headers.Add("Last-Modified", statement.Stored.ToString("o"));
             return Ok(statement);
         }
 

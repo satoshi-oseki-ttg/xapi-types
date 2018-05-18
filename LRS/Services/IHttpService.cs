@@ -12,6 +12,6 @@ namespace bracken_lrs.Services
     {
         string GetETag(string[] contents);
         string GetETag(string contents);
-        MultipartContent CreateMultipartContent(StatementsResult statements);
+        MultipartContent CreateMultipartContent(object value);
     }
 }

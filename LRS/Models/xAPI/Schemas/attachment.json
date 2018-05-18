@@ -32,6 +32,9 @@
         "fileUrl": {
             "type": "string",
             "format": "iri"
+        },
+        "content": {
+            "type": "string"
         }
     }
 }

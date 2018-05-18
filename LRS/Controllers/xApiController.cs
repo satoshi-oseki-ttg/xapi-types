@@ -20,6 +20,7 @@ using bracken_lrs.Attributes;
 using bracken_lrs.Model;
 using bracken_lrs.Models.xAPI.Documents;
 using System.Security.Cryptography;
+using Newtonsoft.Json.Serialization;
 
 namespace bracken_lrs.Controllers
 {
@@ -37,6 +38,11 @@ namespace bracken_lrs.Controllers
         private readonly string[] alternateRequestHeaders = new []
         {
             "Authorization", "X-Experience-API-Version", "Content-Type", "Content-Length", "If-Match", "If-None-Match"
+        };
+        private readonly JsonSerializerSettings jsonSerializerSettings = new JsonSerializerSettings
+        {
+            NullValueHandling = NullValueHandling.Ignore,
+            ContractResolver = new CamelCasePropertyNamesContractResolver()
         };
 
         public xApiController(
@@ -141,7 +147,17 @@ namespace bracken_lrs.Controllers
             }
 
             Response.Headers.Add("Last-Modified", statement.Stored.ToString("o"));
-            return Ok(statement);
+            if (attachments) // return statements in multipart format
+            {
+                var multipartContent = _httpService.CreateMultipartContent(statement);
+                Request.HttpContext.Response.ContentType = multipartContent.Headers.ContentType.ToString();
+                var content = await multipartContent.ReadAsStreamAsync();
+                return Ok(content);
+            }
+            else
+            {
+                return Ok(statement);
+            }
         }
 
         private bool AreQueryParametersValid(ICollection<string> queryPatameters, out IList<string> invalidParameters)
@@ -203,8 +219,11 @@ namespace bracken_lrs.Controllers
                 var statement = await _multipartStatementService.GetMultipartStatementAsync(Request.Body, Request.ContentType);
                 var userName = User.Identity.Name;
                 var lrsUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.Value}";
+                var statementJson = JsonConvert.SerializeObject(statement, jsonSerializerSettings);
 
-                return Ok(await _repositoryService.SaveStatements(statement, null, lrsUrl, userName));
+                return Ok(await _repositoryService.SaveStatements(
+                    JsonConvert.DeserializeObject<JObject>(statementJson, jsonSerializerSettings),
+                    null, lrsUrl, userName));
             }
             catch (Exception e)
             {

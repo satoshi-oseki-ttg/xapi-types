@@ -14,6 +14,12 @@ namespace bracken_lrs.Services
 {
     public class HttpService : IHttpService
     {
+        private readonly JsonSerializerSettings jsonSerializerSettings = new JsonSerializerSettings
+        {
+            NullValueHandling = NullValueHandling.Ignore,
+            ContractResolver = new CamelCasePropertyNamesContractResolver()
+        };
+
         public string GetETag(string[] contents)
         {
             var stringBuilder = new StringBuilder();
@@ -36,20 +42,54 @@ namespace bracken_lrs.Services
             return "\"" + hash + "\"";
         }
 
-        public MultipartContent CreateMultipartContent(StatementsResult statements)
+        public MultipartContent CreateMultipartContent(object value)
         {
             var nowTicks = DateTime.UtcNow.Ticks;
             var multipartContent = new MultipartContent("mixed", $"----{nowTicks}");
-            var jsonSerializerSettings = new JsonSerializerSettings
-            {
-                NullValueHandling = NullValueHandling.Ignore,
-                ContractResolver = new CamelCasePropertyNamesContractResolver()
-            };
 
             multipartContent.Add(new StringContent(
-                JsonConvert.SerializeObject(statements, jsonSerializerSettings), Encoding.UTF8, "application/json"));
+                JsonConvert.SerializeObject(value, jsonSerializerSettings), Encoding.UTF8, "application/json"));
+            AddAttachments(value, multipartContent);
 
             return multipartContent;
+        }
+
+        private void AddAttachments(object value, MultipartContent multipartContent) // value : Statement | StatementResult
+        {
+            if (value is Statement)
+            {
+               AddAttachments(((Statement)value).Attachments, multipartContent);
+            }
+            if (value is StatementsResult)
+            {
+                var statements = ((StatementsResult)value).Statements;
+                foreach (var statement in statements)
+                {
+                    AddAttachments(statement.Attachments, multipartContent);
+                }
+            }
+        }
+
+        private void AddAttachments(IList<Attachment> attachments, MultipartContent multipartContent)
+        {
+            if (attachments == null)
+            {
+                return;
+            }
+            
+            foreach (var attachment in attachments)
+            {
+                if (attachment.Content == null)
+                {
+                    continue;
+                }
+                var content = new StringContent(
+                    Encoding.UTF8.GetString(attachment.Content),
+                    Encoding.UTF8, attachment.ContentType);
+                content.Headers.Add("Content-Transfer-Encoding", "binary");
+                content.Headers.Add("X-Experience-API-Hash", attachment.Sha2);
+                multipartContent.Add(content);
+            }
         }
     }
 }

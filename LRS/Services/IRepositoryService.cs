@@ -14,7 +14,7 @@ namespace bracken_lrs.Services
         Task<string[]> SaveStatements(object json, Guid? statementId, string lrsUrl, string userName);
         Task<string[]> SaveStatement(Statement statement, Guid? statementId, string lrsUrl, string userName);
         Task<Statement> GetStatement(Guid? id, bool toGetVoided = false, IList<StringWithQualityHeaderValue> acceptLanguages = null, string format = "exact");
-        StatementsResult GetStatements
+        Task<StatementsResult> GetStatements
         (
             Agent agent,
             Uri verbId,

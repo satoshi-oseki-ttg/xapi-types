@@ -26,6 +26,7 @@ namespace bracken_lrs.Services
     public class RepositoryService : IRepositoryService
     {
         private readonly Uri courseType = new Uri("http://adlnet.gov/expapi/activities/course");
+        private readonly Uri voidedVerb = new Uri("http://adlnet.gov/expapi/verbs/voided");
         private readonly IMongoClient _client;
         private readonly IMongoDatabase _db;
         private readonly AppSettings _appSettings;
@@ -486,7 +487,7 @@ namespace bracken_lrs.Services
             return idsOnly;
         }
 
-        public StatementsResult GetStatements
+        public async Task<StatementsResult> GetStatements
         (
             Agent agent,
             Uri verbId,
@@ -530,6 +531,9 @@ namespace bracken_lrs.Services
                 statements = statements.Where(x => x.Stored <= untilUtc).ToList();        
             }
 
+            // Replace every voided statement with a statement that is voiding it.
+            statements = await ReplaceVoidedWithVoiding(statements);
+
             var filtered = FilterWithLanguage(statements, acceptLanguages);
             if (format == "canonical")
             {
@@ -541,6 +545,35 @@ namespace bracken_lrs.Services
             }
 
             return new StatementsResult(filtered);
+        }
+
+        private async Task<List<Statement>> ReplaceVoidedWithVoiding(IList<Statement> statements)
+        {
+            var newList = new List<Statement>();
+            var collection = _db.GetCollection<Statement>(statementCollection);
+            if (collection == null)
+            {
+                return await Task.FromResult(newList);
+            }
+
+            var cursor = await collection.FindAsync<Statement>(x => x.Verb.Id == voidedVerb);
+            var voidingStatements = cursor.ToList();
+            foreach (var statement in statements)
+            {
+                var voidingStatement = voidingStatements.Find(x =>
+                    x.Target is StatementRef
+                    && ((StatementRef)x.Target).Id  == statement.Id);
+                if (voidingStatement != null)
+                {
+                    newList.Add(voidingStatement);
+                }
+                else
+                {
+                    newList.Add(statement);
+                }
+            }
+
+            return newList;
         }
 
         private async Task<bool> IsTargetVoided(Statement statement)

@@ -30,7 +30,7 @@ namespace bracken_lrs.Controllers
         private readonly IxApiService _xApiService;
         private readonly IJobQueueService _jobQueueService;
         private readonly IRepositoryService _repositoryService;
-        private readonly ISignedStatementService _signedStatementService;
+        private readonly IMultipartStatementService _multipartStatementService;
         private readonly IHttpService _httpService;
         private static readonly Uri completed = new Uri("http://adlnet.gov/expapi/verbs/completed");
         private static readonly HttpClient httpClient = new HttpClient();
@@ -43,13 +43,13 @@ namespace bracken_lrs.Controllers
             IxApiService xApiService,
             IJobQueueService jobQueueService,
             IRepositoryService repositoryService,
-            ISignedStatementService signedStatementService,
+            IMultipartStatementService multipartStatementService,
             IHttpService httpService)
         {
             _xApiService = xApiService;
             _jobQueueService = jobQueueService;
             _repositoryService = repositoryService;
-            _signedStatementService = signedStatementService;
+            _multipartStatementService = multipartStatementService;
             _httpService = httpService;
         }
 
@@ -113,7 +113,9 @@ namespace bracken_lrs.Controllers
                     : null;
                 var result = _repositoryService.GetStatements
                     (agentObject, verb, activity, registration, limit, since, until, acceptLanguages, format, ascending);
-                var lastStatementStored = result.Statements.First().Stored.ToString("o");
+                var lastStatementStored = result.Statements.Count > 0
+                    ? result.Statements.First().Stored.ToString("o")
+                    : "";
                 if (limit > 0 || since != null && since > DateTime.MinValue)
                 {
                     result.More = $"/tcapi/statements?since={lastStatementStored}";
@@ -198,7 +200,7 @@ namespace bracken_lrs.Controllers
         {
             try
             {
-                var statement = await _signedStatementService.GetSignedStatementAsync(Request.Body, Request.ContentType);
+                var statement = await _multipartStatementService.GetMultipartStatementAsync(Request.Body, Request.ContentType);
                 var userName = User.Identity.Name;
                 var lrsUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.Value}";
 

@@ -6,8 +6,8 @@ using Newtonsoft.Json.Linq;
 
 namespace bracken_lrs.Services
 {
-    public interface ISignedStatementService
+    public interface IMultipartStatementService
     {
-        Task<Statement> GetSignedStatementAsync(Stream body, string contentType);
+        Task<Statement> GetMultipartStatementAsync(Stream body, string contentType);
     }
 }

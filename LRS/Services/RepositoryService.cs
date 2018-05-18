@@ -35,18 +35,18 @@ namespace bracken_lrs.Services
         private const string activityProfileCollection = "activities";
         private const string agentProfileCollection = "agents";
         private readonly IxApiValidationService _xApiValidationService;
-        private readonly ISignedStatementService _signedStatementService;
+        private readonly IMultipartStatementService _multipartStatementService;
 
         public RepositoryService
         (
             IOptions<AppSettings> optionsAccessor,
             IxApiValidationService xApiValidationService,
-            ISignedStatementService signedStatementService
+            IMultipartStatementService multipartStatementService
         )
         {
             _appSettings = optionsAccessor.Value;
             _xApiValidationService = xApiValidationService;
-            _signedStatementService = signedStatementService;
+            _multipartStatementService = multipartStatementService;
             
             MongoDefaults.GuidRepresentation = MongoDB.Bson.GuidRepresentation.Standard;
 

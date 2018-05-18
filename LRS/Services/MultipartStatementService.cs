@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Text;
@@ -10,9 +11,13 @@ using Newtonsoft.Json.Linq;
 
 namespace bracken_lrs.Services
 {
-    public class SignedStatementService : ISignedStatementService
+    public class MultipartStatementService : IMultipartStatementService
     {
-        public async Task<Statement> GetSignedStatementAsync(Stream body, string contentType)
+        private readonly Uri signatureUsageType = new Uri("http://adlnet.gov/expapi/attachments/signature");
+        private const string octetStreamContentType = "application/octet-stream";
+        private const string apiHashHeader = "X-Experience-API-Hash";
+
+        public async Task<Statement> GetMultipartStatementAsync(Stream body, string contentType)
         {
             // Keep body content here in case there are no boundaries - see the catch section below.
             string bodyContent = "";
@@ -28,25 +33,31 @@ namespace bracken_lrs.Services
                 //var stream = await content.ReadAsStringAsync();
                 var reader = new MultipartReader(boundary, body);
                 MultipartSection section;
-                Statement signedStatement = null;
+                Statement statement = null;
                 string jws = null;
                 bool isBinary = false;
                 bool hasStatement = false;
                 try
                 {
+                    var numStatements = 0;
+                    var numAttachments = 0;
+                    var attachmentHashes = new List<string>();
                     while ((section = await reader.ReadNextSectionAsync()) != null)
                     {
                         using (var streamContent = new StreamContent(section.Body))
                         {
                             var sectionBody = await streamContent.ReadAsStringAsync();
-                            if (section.ContentType == "application/json")
+                            if (section.ContentType == "application/json") // Statement JSON
                             {
                                 hasStatement = true;
-                                signedStatement = JsonConvert.DeserializeObject<Statement>(sectionBody);
-                                if (signedStatement.Attachments[0].ContentType.StartsWith("text/plain"))
-                                {
-                                    throw new Exception("A signed statement with a malformed signature - bad content type");
-                                }
+                                numStatements++;
+                                statement = JsonConvert.DeserializeObject<Statement>(sectionBody);
+                                CheckAttachmentContentType(statement.Attachments);
+                            }
+                            else
+                            {
+                                attachmentHashes.Add(section.Headers[apiHashHeader]);
+                                statement.Attachments[numAttachments++].Content = Encoding.UTF8.GetBytes(sectionBody);
                             }
 
                             if (section.Headers.ContainsKey("Content-Transfer-Encoding")
@@ -66,19 +77,36 @@ namespace bracken_lrs.Services
                         }
                     }
 
+                    if (numAttachments > statement?.Attachments.Count)
+                    {
+                        throw new Exception("Passing statement has excess multipart sections.");
+                    }
+
+                    if (numAttachments < statement?.Attachments.Count)
+                    {
+                        throw new Exception("Passing statement is missing multipart sections.");
+                    }
+
                     if (!hasStatement)
                     {
                         throw new Exception("There's no statement - possibly a boundary is missing.");
                     }
 
-                    ValidateStatement(signedStatement, jws, isBinary);
+                    if (numStatements > 1)
+                    {
+                        throw new Exception("Statements are separated into multiple parts.");
+                    }
+
+                    CheckAttachementHashes(statement.Attachments, attachmentHashes);
+
+                    ValidateStatement(statement, jws, isBinary);
                 }
                 catch (Exception e) // Possibly there's only one section without a boundary.
                 {
-                    signedStatement = JsonConvert.DeserializeObject<Statement>(bodyContent);
-                    if (signedStatement != null
+                    statement = JsonConvert.DeserializeObject<Statement>(bodyContent);
+                    if (statement != null
                         && contentType.StartsWith("multipart/form-data")
-                        && signedStatement.Attachments[0].FileUrl != null)
+                        && statement.Attachments[0].FileUrl != null)
                     {
                         throw new Exception("A statement should fail when attachment uses fileUrl and request content-type is multipart/form-data.");
                     }
@@ -88,7 +116,42 @@ namespace bracken_lrs.Services
                     }
                 }
 
-                return signedStatement;
+                return statement;
+            }
+        }
+        
+        private void CheckAttachementHashes(IList<Attachment> attachments, IList<string> hashes)
+        {
+            if (hashes.Contains(null))
+            {
+                throw new Exception("Attachments missing header X-Experience-API-Hash.");
+            }
+
+            var i = 0;
+            foreach (var attachment in attachments)
+            {
+                if (attachment.Sha2 != hashes[i])
+                {
+                    throw new Exception("Attachments header X-Experience-API-Hash does not match sha2.");
+                }
+                i++;
+            }
+        }
+
+        private void CheckAttachmentContentType(IList<Attachment> attachments)
+        {
+            if (attachments == null)
+            {
+                return;
+            }
+
+            foreach (var attachment in attachments)
+            {
+                if (attachment.UsageType == signatureUsageType
+                    && attachment.ContentType != octetStreamContentType)
+                {
+                    throw new Exception($"A signed statement with a malformed signature - bad content type: {attachment.ContentType}");
+                }
             }
         }
         

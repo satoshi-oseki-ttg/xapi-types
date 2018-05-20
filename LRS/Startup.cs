@@ -21,6 +21,7 @@ using bracken_lrs.Models.Json;
 using MongoDB.Bson;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Newtonsoft.Json.Schema;
+using Serilog;
 
 namespace bracken_lrs
 {
@@ -29,6 +30,10 @@ namespace bracken_lrs
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+
+            Log.Logger = new LoggerConfiguration()
+                .ReadFrom.Configuration(Configuration)
+                .CreateLogger();
         }
 
         public IConfiguration Configuration { get; }

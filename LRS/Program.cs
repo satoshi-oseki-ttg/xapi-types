@@ -7,6 +7,8 @@ using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Settings.Configuration;
 
 namespace bracken_lrs
 {
@@ -34,6 +36,7 @@ namespace bracken_lrs
             return WebHost.CreateDefaultBuilder(args)
                 .UseConfiguration(config)
                 .UseStartup<Startup>()
+                .UseSerilog()
                 .Build();
         }
 

@@ -11,10 +11,10 @@ namespace bracken_lrs.Services
 {
     public interface IRepositoryService
     {
-        Task<string[]> SaveStatements(object json, Guid? statementId, string lrsUrl, string userName);
-        Task<string[]> SaveStatement(Statement statement, Guid? statementId, string lrsUrl, string userName);
-        Task<Statement> GetStatement(Guid? id, bool toGetVoided = false, IList<StringWithQualityHeaderValue> acceptLanguages = null, string format = "exact");
-        Task<StatementsResult> GetStatements
+        Task<string[]> SaveStatementsAsync(object json, Guid? statementId, string lrsUrl, string userName);
+        Task<string[]> SaveStatementAsync(Statement statement, Guid? statementId, string lrsUrl, string userName);
+        Task<Statement> GetStatementAsync(Guid? id, bool toGetVoided = false, IList<StringWithQualityHeaderValue> acceptLanguages = null, string format = "exact");
+        Task<StatementsResult> GetStatementsAsync
         (
             Agent agent,
             Uri verbId,
@@ -27,20 +27,20 @@ namespace bracken_lrs.Services
             string format,
             bool ascending
         );
-        Task SaveState(byte[] value, string stateId, string activityId, Agent agent, Guid? registration, string contentType);
-        Task<string> GetState(string stateId, string activityId, Agent agent);
-        Task<StateDocument> GetStateDocument(string stateId, string activityId, Agent agent, Guid? registration);
-        Task<IList<StateDocument>> GetStateDocuments(string activityId, Agent agent, Guid? registration, DateTime? since = null);
-        Task<bool> DeleteStateDocument(string stateId, string activityId, Agent agent, Guid? registration);
-        Task SaveActivityProfile(byte[] value, string activityId, string profileId, string contentType);
-        Task<ActivityProfileDocument> GetActivityProfileDocument(string activityId, string profileId);
-        Task<IList<ActivityProfileDocument>> GetActivityProfileDocuments(string activityId, DateTime? since = null);
-        Task<bool> DeleteActivityProfile(string activityId, string profileId);
-        Task SaveAgentProfile(byte[] value, Agent agent, string profileId, string contentType);
-        Task<AgentProfileDocument> GetAgentProfileDocument(Agent agent, string profileId);
-        Task<IList<AgentProfileDocument>> GetAgentProfileDocuments(Agent agent, DateTime? since);
-        Task<bool> DeleteAgentProfile(Agent agent, string profileId);
-        Task<Activity> GetActivity(string activityId);
-        Task<Person> GetPerson(Agent agent);
+        Task SaveStateAsync(byte[] value, string stateId, string activityId, Agent agent, Guid? registration, string contentType);
+        Task<string> GetStateAsync(string stateId, string activityId, Agent agent);
+        Task<StateDocument> GetStateDocumentAsync(string stateId, string activityId, Agent agent, Guid? registration);
+        Task<IList<StateDocument>> GetStateDocumentsAsync(string activityId, Agent agent, Guid? registration, DateTime? since = null);
+        Task<bool> DeleteStateDocumentAsync(string stateId, string activityId, Agent agent, Guid? registration);
+        Task SaveActivityProfileAsync(byte[] value, string activityId, string profileId, string contentType);
+        Task<ActivityProfileDocument> GetActivityProfileDocumentAsync(string activityId, string profileId);
+        Task<IList<ActivityProfileDocument>> GetActivityProfileDocumentsAsync(string activityId, DateTime? since = null);
+        Task<bool> DeleteActivityProfileAsync(string activityId, string profileId);
+        Task SaveAgentProfileAsync(byte[] value, Agent agent, string profileId, string contentType);
+        Task<AgentProfileDocument> GetAgentProfileDocumentAsync(Agent agent, string profileId);
+        Task<IList<AgentProfileDocument>> GetAgentProfileDocumentsAsync(Agent agent, DateTime? since);
+        Task<bool> DeleteAgentProfileAsync(Agent agent, string profileId);
+        Task<Activity> GetActivityAsync(string activityId);
+        Task<Person> GetPersonAsync(Agent agent);
     }
 }

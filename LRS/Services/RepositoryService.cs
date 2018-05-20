@@ -38,8 +38,7 @@ namespace bracken_lrs.Services
         private readonly IxApiValidationService _xApiValidationService;
         private readonly IMultipartStatementService _multipartStatementService;
 
-        public RepositoryService
-        (
+        public RepositoryService(
             IOptions<AppSettings> optionsAccessor,
             IxApiValidationService xApiValidationService,
             IMultipartStatementService multipartStatementService
@@ -68,7 +67,7 @@ namespace bracken_lrs.Services
             _db = _client.GetDatabase(dbName);
          }
 
-        public async Task<string[]> SaveStatements(object obj, Guid? statementId, string lrsUrl, string userName)
+        public async Task<string[]> SaveStatementsAsync(object obj, Guid? statementId, string lrsUrl, string userName)
         {
             JArray jObjects = new JArray();
             if (obj as JObject != null)
@@ -86,31 +85,31 @@ namespace bracken_lrs.Services
             {
                 _xApiValidationService.ValidateStatement(jObject as JObject);
                 var statement = JsonConvert.DeserializeObject<Statement>(jObject.ToString());
-                await ValidateStatement(statement);
+                await ValidateStatementAsync(statement);
             }
 
             foreach (var jObject in jObjects)
             {
-                var id = await SaveStatement(jObject as JObject, statementId, lrsUrl, userName);
+                var id = await SaveStatementAsync(jObject as JObject, statementId, lrsUrl, userName);
                 ids.Add(id);
             }
 
             return ids.ToArray();
         }
 
-        public async Task<string[]> SaveStatement(Statement statement, Guid? statementId, string lrsUrl, string userName)
+        public async Task<string[]> SaveStatementAsync(Statement statement, Guid? statementId, string lrsUrl, string userName)
         {
-            return new [] { await DoSaveStatement(statement, statementId, lrsUrl, userName) };
+            return new [] { await DoSaveStatementAsync(statement, statementId, lrsUrl, userName) };
         }
 
-        private async Task<string> SaveStatement(JObject jObject, Guid? statementId, string lrsUrl, string userName)
+        private async Task<string> SaveStatementAsync(JObject jObject, Guid? statementId, string lrsUrl, string userName)
         {
             var statement = JsonConvert.DeserializeObject<Statement>(jObject.ToString());
 
-            return await DoSaveStatement(statement, statementId, lrsUrl, userName);
+            return await DoSaveStatementAsync(statement, statementId, lrsUrl, userName);
         }
 
-        private async Task<string> DoSaveStatement(Statement statement, Guid? statementId, string lrsUrl, string userName)
+        private async Task<string> DoSaveStatementAsync(Statement statement, Guid? statementId, string lrsUrl, string userName)
         {
             if (statement.Id == null || statement.Id == Guid.Empty)
             {
@@ -140,7 +139,7 @@ namespace bracken_lrs.Services
             return await Task.FromResult(statement.Id.ToString());
         }
 
-        private async Task ValidateStatement(Statement statement)
+        private async Task ValidateStatementAsync(Statement statement)
         {
             if (statement.Verb.Id == new Uri("http://adlnet.gov/expapi/verbs/voided") // this is done in StatementBase model
                 && statement.Target as StatementRef == null)
@@ -151,7 +150,7 @@ namespace bracken_lrs.Services
             if (statement.Verb.Id == new Uri("http://adlnet.gov/expapi/verbs/voided"))
             {
                 var beingVoided = ((StatementRef)statement.Target).Id;
-                if (await IsVoiding(beingVoided))
+                if (await IsVoidingAsync(beingVoided))
                 {
                     throw new Exception("A Voiding Statement cannot Target another Voiding Statement.");
                 }
@@ -160,15 +159,14 @@ namespace bracken_lrs.Services
             //?? _xApiValidationService.ValidateVerb(statement.Verb);
         }
 
-        public async Task<Statement> GetStatement
-        (
+        public async Task<Statement> GetStatementAsync(
             Guid? id,
             bool toGetVoided = false,
             IList<StringWithQualityHeaderValue> acceptLanguages = null,
             string format = "exact"
         )
         {
-            if (toGetVoided != await IsVoided(id))
+            if (toGetVoided != await IsVoidedAsync(id))
             {
                 return null;
             }
@@ -298,7 +296,7 @@ namespace bracken_lrs.Services
             return filteredMap;
         }
 
-        private async Task<bool> IsVoided(Guid? id)
+        private async Task<bool> IsVoidedAsync(Guid? id)
         {
             var collection = _db.GetCollection<Statement>(statementCollection);
             if (collection == null)
@@ -325,7 +323,7 @@ namespace bracken_lrs.Services
 
         // A is a regular statement. B is voiding A. C is now voiding B.
         // But C can't void B because B is voiding A. 
-        private async Task<bool> IsVoiding(Guid? id)
+        private async Task<bool> IsVoidingAsync(Guid? id)
         {
             var collection = _db.GetCollection<Statement>(statementCollection);
             if (collection == null)
@@ -487,8 +485,7 @@ namespace bracken_lrs.Services
             return idsOnly;
         }
 
-        public async Task<StatementsResult> GetStatements
-        (
+        public async Task<StatementsResult> GetStatementsAsync(
             Agent agent,
             Uri verbId,
             Uri activity,
@@ -532,7 +529,7 @@ namespace bracken_lrs.Services
             }
 
             // Replace every voided statement with a statement that is voiding it.
-            statements = await ReplaceVoidedWithVoiding(statements);
+            statements = await ReplaceVoidedWithVoidingAsync(statements);
 
             var filtered = FilterWithLanguage(statements, acceptLanguages);
             if (format == "canonical")
@@ -547,7 +544,7 @@ namespace bracken_lrs.Services
             return new StatementsResult(filtered);
         }
 
-        private async Task<List<Statement>> ReplaceVoidedWithVoiding(IList<Statement> statements)
+        private async Task<List<Statement>> ReplaceVoidedWithVoidingAsync(IList<Statement> statements)
         {
             var newList = new List<Statement>();
             var collection = _db.GetCollection<Statement>(statementCollection);
@@ -576,7 +573,7 @@ namespace bracken_lrs.Services
             return newList;
         }
 
-        private async Task<bool> IsTargetVoided(Statement statement)
+        private async Task<bool> IsTargetVoidedAsync(Statement statement)
         {
             var activity = statement.Target as Activity;
             if (activity == null)
@@ -601,7 +598,7 @@ namespace bracken_lrs.Services
                     {
                         continue;
                     }
-                    var voidedStatement = await GetStatement(statementRef.Id, true);
+                    var voidedStatement = await GetStatementAsync(statementRef.Id, true);
                     if (voidedStatement == null)
                     {
                         continue;
@@ -617,14 +614,14 @@ namespace bracken_lrs.Services
             return false;
         }
 
-        public async Task SaveState(byte[] value, string stateId, string activityId, Agent agent, Guid? registration, string contentType)
+        public async Task SaveStateAsync(byte[] value, string stateId, string activityId, Agent agent, Guid? registration, string contentType)
         {
             if (value == null)
             {
                 return;
             }
 
-            var doc = await GetStateDocument(stateId, activityId, agent, registration);
+            var doc = await GetStateDocumentAsync(stateId, activityId, agent, registration);
             if (contentType == "application/json")
             {
                 if (doc != null)
@@ -674,7 +671,7 @@ namespace bracken_lrs.Services
             );
         }
 
-        public async Task<string> GetState(string stateId, string activityId, Agent agent)
+        public async Task<string> GetStateAsync(string stateId, string activityId, Agent agent)
         {
             var collection = _db.GetCollection<StateDocument>(stateCollection);
             if (collection == null)
@@ -702,7 +699,7 @@ namespace bracken_lrs.Services
             return await Task.FromResult(stateAsString);
         }
 
-        public async Task<StateDocument> GetStateDocument(string stateId, string activityId, Agent agent, Guid? registration)
+        public async Task<StateDocument> GetStateDocumentAsync(string stateId, string activityId, Agent agent, Guid? registration)
         {
             var collection = _db.GetCollection<StateDocument>(stateCollection);
             if (collection == null)
@@ -723,7 +720,7 @@ namespace bracken_lrs.Services
             return state;
         }
 
-        public async Task<IList<StateDocument>> GetStateDocuments(string activityId, Agent agent, Guid? registration, DateTime? since = null)
+        public async Task<IList<StateDocument>> GetStateDocumentsAsync(string activityId, Agent agent, Guid? registration, DateTime? since = null)
         {
             var collection = _db.GetCollection<StateDocument>(stateCollection);
             if (collection == null)
@@ -743,7 +740,7 @@ namespace bracken_lrs.Services
             return states;
         }
 
-        public async Task<bool> DeleteStateDocument(string stateId, string activityId, Agent agent, Guid? registration)
+        public async Task<bool> DeleteStateDocumentAsync(string stateId, string activityId, Agent agent, Guid? registration)
         {
             var collection = _db.GetCollection<StateDocument>(stateCollection);
             if (collection == null)
@@ -763,11 +760,11 @@ namespace bracken_lrs.Services
             return deleteResult.IsAcknowledged;
         }
 
-        public async Task SaveActivityProfile(byte[] value, string activityId, string profileId, string contentType)
+        public async Task SaveActivityProfileAsync(byte[] value, string activityId, string profileId, string contentType)
         {
             if (contentType == "application/json")
             {
-                var doc = await GetActivityProfileDocument(activityId, profileId);
+                var doc = await GetActivityProfileDocumentAsync(activityId, profileId);
                 if (doc != null)
                 {
                     if (doc.ContentType == "application/json") // Merge JSONs
@@ -813,7 +810,7 @@ namespace bracken_lrs.Services
             );
         }
 
-        public async Task<ActivityProfileDocument> GetActivityProfileDocument(string activityId, string profileId)
+        public async Task<ActivityProfileDocument> GetActivityProfileDocumentAsync(string activityId, string profileId)
         {
             var collection = _db.GetCollection<ActivityProfileDocument>(activityProfileCollection);
             if (collection == null)
@@ -829,7 +826,7 @@ namespace bracken_lrs.Services
             return await doc?.FirstOrDefaultAsync();
         }
 
-        public async Task<IList<ActivityProfileDocument>> GetActivityProfileDocuments(string activityId, DateTime? since)
+        public async Task<IList<ActivityProfileDocument>> GetActivityProfileDocumentsAsync(string activityId, DateTime? since)
         {
             var collection = _db.GetCollection<ActivityProfileDocument>(activityProfileCollection);
             if (collection == null)
@@ -846,7 +843,7 @@ namespace bracken_lrs.Services
             return doc.ToList();
         }
 
-        public async Task<bool> DeleteActivityProfile(string activityId, string profileId)
+        public async Task<bool> DeleteActivityProfileAsync(string activityId, string profileId)
         {
             var collection = _db.GetCollection<ActivityProfileDocument>(activityProfileCollection);
             if (collection == null)
@@ -864,11 +861,11 @@ namespace bracken_lrs.Services
             return deleteResult.IsAcknowledged;
         }
 
-        public async Task SaveAgentProfile(byte[] value, Agent agent, string profileId, string contentType)
+        public async Task SaveAgentProfileAsync(byte[] value, Agent agent, string profileId, string contentType)
         {
             if (contentType == "application/json")
             {
-                var doc = await GetAgentProfileDocument(agent, profileId);
+                var doc = await GetAgentProfileDocumentAsync(agent, profileId);
                 if (doc != null)
                 {
                     if (doc.ContentType == "application/json") // Merge JSONs
@@ -910,7 +907,7 @@ namespace bracken_lrs.Services
             );
         }
 
-        public async Task<AgentProfileDocument> GetAgentProfileDocument(Agent agent, string profileId)
+        public async Task<AgentProfileDocument> GetAgentProfileDocumentAsync(Agent agent, string profileId)
         {
             var collection = _db.GetCollection<AgentProfileDocument>(agentProfileCollection);
             if (collection == null)
@@ -926,7 +923,7 @@ namespace bracken_lrs.Services
             return await doc.FirstOrDefaultAsync();
         }
 
-        public async Task<IList<AgentProfileDocument>> GetAgentProfileDocuments(Agent agent, DateTime? since)
+        public async Task<IList<AgentProfileDocument>> GetAgentProfileDocumentsAsync(Agent agent, DateTime? since)
         {
             var collection = _db.GetCollection<AgentProfileDocument>(agentProfileCollection);
             if (collection == null)
@@ -943,7 +940,7 @@ namespace bracken_lrs.Services
             return doc.ToList();
         }
 
-        public async Task<bool> DeleteAgentProfile(Agent agent, string profileId)
+        public async Task<bool> DeleteAgentProfileAsync(Agent agent, string profileId)
         {
             var collection = _db.GetCollection<AgentProfileDocument>(agentProfileCollection);
             if (collection == null)
@@ -961,7 +958,7 @@ namespace bracken_lrs.Services
             return deleteResult.IsAcknowledged;
         }
 
-        public async Task<Activity> GetActivity(string activityId)
+        public async Task<Activity> GetActivityAsync(string activityId)
         {
             var collection = _db.GetCollection<Statement>(statementCollection);
             if (collection == null)
@@ -990,7 +987,7 @@ namespace bracken_lrs.Services
             return result.ToObject<Activity>();
         }
 
-        public async Task<Person> GetPerson(Agent agent)
+        public async Task<Person> GetPersonAsync(Agent agent)
         {
             var person = new Person();
             var collection = _db.GetCollection<Statement>(statementCollection);

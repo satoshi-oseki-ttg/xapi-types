@@ -50,7 +50,8 @@ namespace bracken_lrs.Controllers
             IJobQueueService jobQueueService,
             IRepositoryService repositoryService,
             IMultipartStatementService multipartStatementService,
-            IHttpService httpService)
+            IHttpService httpService
+        )
         {
             _xApiService = xApiService;
             _jobQueueService = jobQueueService;
@@ -60,7 +61,7 @@ namespace bracken_lrs.Controllers
         }
 
         [HttpGet("statements")]
-        public async Task<IActionResult> GetStatement(
+        public async Task<IActionResult> GetStatementAsync(
             [FromQuery] Guid statementId,
             [FromQuery] Guid voidedStatementId,
             [FromQuery] string agent, // JSON
@@ -74,7 +75,8 @@ namespace bracken_lrs.Controllers
             [FromQuery] int limit,
             [FromQuery] string format, // "ids" | "exact" | "canonical"
             [FromQuery] bool attachments,
-            [FromQuery] bool ascending)
+            [FromQuery] bool ascending
+        )
         {
             Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
 
@@ -117,7 +119,7 @@ namespace bracken_lrs.Controllers
                 var agentObject = agent != null
                     ? JsonConvert.DeserializeObject<Agent>(agent)
                     : null;
-                var result = await _repositoryService.GetStatements
+                var result = await _repositoryService.GetStatementsAsync
                     (agentObject, verb, activity, registration, limit, since, until, acceptLanguages, format, ascending);
                 var lastStatementStored = result.Statements.Count > 0
                     ? result.Statements.First().Stored.ToString("o")
@@ -140,7 +142,7 @@ namespace bracken_lrs.Controllers
             }
 
             var id = voidedStatementId == Guid.Empty ? statementId : voidedStatementId;
-            var statement = await _repositoryService.GetStatement(id, voidedStatementId != Guid.Empty, acceptLanguages, format);
+            var statement = await _repositoryService.GetStatementAsync(id, voidedStatementId != Guid.Empty, acceptLanguages, format);
             if (statement == null)
             {
                 return NotFound();
@@ -221,7 +223,7 @@ namespace bracken_lrs.Controllers
                 var lrsUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.Value}";
                 var statementJson = JsonConvert.SerializeObject(statement, jsonSerializerSettings);
 
-                return Ok(await _repositoryService.SaveStatements(
+                return Ok(await _repositoryService.SaveStatementsAsync(
                     JsonConvert.DeserializeObject<JObject>(statementJson, jsonSerializerSettings),
                     null, lrsUrl, userName));
             }
@@ -248,7 +250,7 @@ namespace bracken_lrs.Controllers
             {
                 try
                 {
-                    var response = await ResendStatementRequest(Request, query, method);
+                    var response = await ResendStatementRequestAsync(Request, query, method);
                     return response;
                 }
                 catch (Exception e)
@@ -260,7 +262,7 @@ namespace bracken_lrs.Controllers
             return BadRequest("An alternate request only supports GET and POST.");
         }
 
-        private async Task<IActionResult> ResendStatementRequest(HttpRequest request, IFormCollection formData, string method)
+        private async Task<IActionResult> ResendStatementRequestAsync(HttpRequest request, IFormCollection formData, string method)
         {
             // var statementId = new Guid(formData["statementId"]);
             using (var client = new HttpClient())
@@ -343,7 +345,7 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [HttpPost("statements")]
-        public async Task<IActionResult> PostStatement([FromBody]object obj)
+        public async Task<IActionResult> PostStatementAsync([FromBody]object obj)
         {
             if (!ModelState.IsValid)
             {
@@ -355,7 +357,7 @@ namespace bracken_lrs.Controllers
                 var userName = User.Identity.Name;
                 var lrsUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.Value}";
 
-                return Ok(await _repositoryService.SaveStatements(obj, null, lrsUrl, userName));
+                return Ok(await _repositoryService.SaveStatementsAsync(obj, null, lrsUrl, userName));
             }
             catch (Exception e)
             {
@@ -366,7 +368,7 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [HttpPut("statements")]
-        public async Task<IActionResult> PutStatement([FromBody]object obj, [FromQuery]Guid statementId, [FromQuery]Guid publishedResultID)
+        public async Task<IActionResult> PutStatementAsync([FromBody]object obj, [FromQuery]Guid statementId, [FromQuery]Guid publishedResultID)
         {
             IList<string> invalidParameters;
             var allParametersValid = AreQueryParametersValid(Request.Query.Keys, out invalidParameters);
@@ -384,7 +386,7 @@ namespace bracken_lrs.Controllers
             {
                 var userName = User.Identity.Name;
                 var lrsUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.Value}";
-                await _repositoryService.SaveStatements(obj, statementId, lrsUrl, userName);
+                await _repositoryService.SaveStatementsAsync(obj, statementId, lrsUrl, userName);
                 return NoContent();
             }
             catch (Exception e)
@@ -432,11 +434,12 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [HttpPost("activities/state")]
-        public async Task<IActionResult> PostState(
+        public async Task<IActionResult> PostStateAsync(
             [FromQuery]string stateId,
             [FromQuery]string activityId,
             [FromQuery]string agent,
-            [FromQuery]string registration)
+            [FromQuery]string registration
+        )
         {
             if (string.IsNullOrEmpty(stateId))
             {
@@ -473,7 +476,7 @@ namespace bracken_lrs.Controllers
                 {
                     JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(stateContent));
                     var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
-                    await _repositoryService.SaveState(stateContent, stateId, activityId, agentObject, registrationGuid, Request.ContentType);
+                    await _repositoryService.SaveStateAsync(stateContent, stateId, activityId, agentObject, registrationGuid, Request.ContentType);
 
                     return NoContent();
                 }
@@ -507,11 +510,12 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [HttpPut("activities/state")]
-        public async Task<IActionResult> PutState(
+        public async Task<IActionResult> PutStateAsync(
             [FromQuery]string stateId,
             [FromQuery]string activityId,
             [FromQuery]string agent,
-            [FromQuery]string registration)
+            [FromQuery]string registration
+        )
         {
             if (string.IsNullOrEmpty(stateId))
             {
@@ -550,7 +554,7 @@ namespace bracken_lrs.Controllers
                     var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
                     //_xApiService.SaveState(value, stateId, activityId, agent);
                     //_jobQueueService.EnqueueState(value, stateId, activityId, agent);
-                    await  _repositoryService.SaveState(value, stateId, activityId, agentObject, registrationGuid, Request.ContentType);
+                    await  _repositoryService.SaveStateAsync(value, stateId, activityId, agentObject, registrationGuid, Request.ContentType);
                     return NoContent();
                 }
                 catch (JsonException)
@@ -563,7 +567,7 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [HttpGet("activities/state")]
-        public async Task<IActionResult> GetState(
+        public async Task<IActionResult> GetStateAsync(
             [FromQuery]string stateId,
             [FromQuery]string activityId,
             [FromQuery]string agent,
@@ -625,7 +629,7 @@ namespace bracken_lrs.Controllers
 
             if (stateId != null)
             {
-                var doc = await _repositoryService.GetStateDocument(stateId, activityId, agentObject, registrationGuid);
+                var doc = await _repositoryService.GetStateDocumentAsync(stateId, activityId, agentObject, registrationGuid);
                 var stateAsString = doc?.Content != null ? System.Text.Encoding.UTF8.GetString(doc.Content) : null;
                 if (stateAsString == null)
                 {
@@ -643,7 +647,7 @@ namespace bracken_lrs.Controllers
             }
             else
             {
-                var docs = await _repositoryService.GetStateDocuments(activityId, agentObject, registrationGuid, sinceDateTime);
+                var docs = await _repositoryService.GetStateDocumentsAsync(activityId, agentObject, registrationGuid, sinceDateTime);
                 var states = new List<string>(); // returns a list of ids
                 foreach (var doc in docs)
                 {
@@ -657,11 +661,12 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [HttpDelete("activities/state")]
-        public async Task<IActionResult> DeleteState(
+        public async Task<IActionResult> DeleteStateAsync(
             [FromQuery]string stateId,
             [FromQuery]string activityId,
             [FromQuery]string agent,
-            [FromQuery]string registration)
+            [FromQuery]string registration
+        )
         {
             if (string.IsNullOrEmpty(activityId))
             {
@@ -700,7 +705,7 @@ namespace bracken_lrs.Controllers
                 return BadRequest("GET activities/state: The registration parameter must be a valid UUID.");
             }
 
-            var isAcknowledged = await _repositoryService.DeleteStateDocument(stateId, activityId, agentObject, registrationGuid);
+            var isAcknowledged = await _repositoryService.DeleteStateDocumentAsync(stateId, activityId, agentObject, registrationGuid);
 
             return NoContent();
         }
@@ -715,7 +720,7 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [HttpPost("activities/profile")]
-        public async Task<IActionResult> PostActivityProfile([FromQuery]string activityId, [FromQuery]string profileId)
+        public async Task<IActionResult> PostActivityProfileAsync([FromQuery]string activityId, [FromQuery]string profileId)
         {
             if (string.IsNullOrEmpty(activityId))
             {
@@ -733,7 +738,7 @@ namespace bracken_lrs.Controllers
                 try
                 {
                     JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(profile));
-                    await _repositoryService.SaveActivityProfile(profile, activityId, profileId, Request.ContentType);
+                    await _repositoryService.SaveActivityProfileAsync(profile, activityId, profileId, Request.ContentType);
 
                     return NoContent();
                 }
@@ -753,7 +758,7 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(409)]
         [ProducesResponseType(412)]
         [HttpPut("activities/profile")]
-        public async Task<IActionResult> PutActivityProfile([FromQuery]string activityId, [FromQuery]string profileId)
+        public async Task<IActionResult> PutActivityProfileAsync([FromQuery]string activityId, [FromQuery]string profileId)
         {
             if (string.IsNullOrEmpty(activityId))
             {
@@ -768,7 +773,7 @@ namespace bracken_lrs.Controllers
             var ifMatchHeader = Request.Headers["If-Match"].FirstOrDefault();
             if (!string.IsNullOrEmpty(ifMatchHeader))
             {
-                var saved = await _repositoryService.GetActivityProfileDocument(activityId, profileId);
+                var saved = await _repositoryService.GetActivityProfileDocumentAsync(activityId, profileId);
                 var etag = _httpService.GetETag(System.Text.Encoding.UTF8.GetString(saved.Content));
                 if (ifMatchHeader != etag)
                 {
@@ -779,7 +784,7 @@ namespace bracken_lrs.Controllers
             var ifNoneMatchHeader = Request.Headers["If-None-Match"].FirstOrDefault();
             if (ifNoneMatchHeader == "*")
             {
-                var saved = await _repositoryService.GetActivityProfileDocument(activityId, profileId);
+                var saved = await _repositoryService.GetActivityProfileDocumentAsync(activityId, profileId);
                 if (saved != null)
                 {
                     return StatusCode(412, "PUT activities/profile request is received without either header for a resource that already exists.");
@@ -788,7 +793,7 @@ namespace bracken_lrs.Controllers
 
             if (string.IsNullOrEmpty(ifMatchHeader) && string.IsNullOrEmpty(ifNoneMatchHeader))
             {
-                var saved = await _repositoryService.GetActivityProfileDocument(activityId, profileId);
+                var saved = await _repositoryService.GetActivityProfileDocumentAsync(activityId, profileId);
                 if (saved != null)
                 {
                     return StatusCode(409, "PUT activities/profile request is received without either header for a resource that already exists.");
@@ -805,7 +810,7 @@ namespace bracken_lrs.Controllers
                 try
                 {
                     JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(profile));
-                    await _repositoryService.SaveActivityProfile(profile, activityId, profileId, Request.ContentType);
+                    await _repositoryService.SaveActivityProfileAsync(profile, activityId, profileId, Request.ContentType);
 
                     return NoContent();
                 }
@@ -816,7 +821,7 @@ namespace bracken_lrs.Controllers
             }
             else
             {
-                await _repositoryService.SaveActivityProfile(profile, activityId, profileId, Request.ContentType);
+                await _repositoryService.SaveActivityProfileAsync(profile, activityId, profileId, Request.ContentType);
 
                 return NoContent();
             }
@@ -825,7 +830,7 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [HttpGet("activities/profile")]
-        public async Task<IActionResult> GetActivityProfile([FromQuery]string activityId, [FromQuery]string profileId, [FromQuery]string since = null)
+        public async Task<IActionResult> GetActivityProfileAsync([FromQuery]string activityId, [FromQuery]string profileId, [FromQuery]string since = null)
         {
             Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
 
@@ -848,7 +853,7 @@ namespace bracken_lrs.Controllers
             }
             if (profileId != null)
             {
-                var doc = await _repositoryService.GetActivityProfileDocument(activityId, profileId);
+                var doc = await _repositoryService.GetActivityProfileDocumentAsync(activityId, profileId);
                 var profileAsString = doc.Content != null ? System.Text.Encoding.UTF8.GetString(doc.Content) : null;
                 if (profileAsString == null)
                 {
@@ -867,7 +872,7 @@ namespace bracken_lrs.Controllers
             }
             else
             {
-                var docs = await _repositoryService.GetActivityProfileDocuments(activityId, sinceDateTime);
+                var docs = await _repositoryService.GetActivityProfileDocumentsAsync(activityId, sinceDateTime);
                 var content = new List<string>(); // returns ids
                 foreach (var profile in docs)
                 {
@@ -881,7 +886,7 @@ namespace bracken_lrs.Controllers
 
         [ProducesResponseType(204)]
         [HttpDelete("activities/profile")]
-        public async Task<IActionResult> DeleteActivityProfile([FromQuery]string activityId, [FromQuery]string profileId)
+        public async Task<IActionResult> DeleteActivityProfileAsync([FromQuery]string activityId, [FromQuery]string profileId)
         {
             if (string.IsNullOrEmpty(activityId))
             {
@@ -893,7 +898,7 @@ namespace bracken_lrs.Controllers
                 return BadRequest("DELETE activities/profile: The agent parameter must be supplied.");
             }
 
-            await _repositoryService.DeleteActivityProfile(activityId, profileId);
+            await _repositoryService.DeleteActivityProfileAsync(activityId, profileId);
 
             return NoContent();
         }
@@ -914,7 +919,7 @@ namespace bracken_lrs.Controllers
 
         [ProducesResponseType(204)]
         [HttpPost("agents/profile")]
-        public async Task<IActionResult> PostAgentsProfile([FromQuery]string agent, [FromQuery]string profileId)
+        public async Task<IActionResult> PostAgentsProfileAsync([FromQuery]string agent, [FromQuery]string profileId)
         {
             if (string.IsNullOrEmpty(agent))
             {
@@ -942,7 +947,7 @@ namespace bracken_lrs.Controllers
                 try
                 {
                     JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(profile));
-                    await _repositoryService.SaveAgentProfile(profile, agentObject, profileId, Request.ContentType);
+                    await _repositoryService.SaveAgentProfileAsync(profile, agentObject, profileId, Request.ContentType);
 
                     return NoContent();
                 }
@@ -962,7 +967,7 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(409)]
         [ProducesResponseType(412)]
         [HttpPut("agents/profile")]
-        public async Task<IActionResult> PutAgentsProfile([FromQuery]string agent, [FromQuery]string profileId)
+        public async Task<IActionResult> PutAgentsProfileAsync([FromQuery]string agent, [FromQuery]string profileId)
         {
             if (string.IsNullOrEmpty(agent))
             {
@@ -987,7 +992,7 @@ namespace bracken_lrs.Controllers
             var ifMatchHeader = Request.Headers["If-Match"].FirstOrDefault();
             if (!string.IsNullOrEmpty(ifMatchHeader))
             {
-                var saved = await _repositoryService.GetAgentProfileDocument(agentObject, profileId);
+                var saved = await _repositoryService.GetAgentProfileDocumentAsync(agentObject, profileId);
                 var etag = _httpService.GetETag(System.Text.Encoding.UTF8.GetString(saved.Content));
                 if (ifMatchHeader != etag)
                 {
@@ -998,7 +1003,7 @@ namespace bracken_lrs.Controllers
             var ifNoneMatchHeader = Request.Headers["If-None-Match"].FirstOrDefault();
             if (ifNoneMatchHeader == "*")
             {
-                var saved = await _repositoryService.GetAgentProfileDocument(agentObject, profileId);
+                var saved = await _repositoryService.GetAgentProfileDocumentAsync(agentObject, profileId);
                 if (saved != null)
                 {
                     return StatusCode(412, "PUT agents/profile equest is received without either header for a resource that already exists.");
@@ -1007,7 +1012,7 @@ namespace bracken_lrs.Controllers
 
             if (string.IsNullOrEmpty(ifMatchHeader) && string.IsNullOrEmpty(ifNoneMatchHeader))
             {
-                var saved = await _repositoryService.GetAgentProfileDocument(agentObject, profileId);
+                var saved = await _repositoryService.GetAgentProfileDocumentAsync(agentObject, profileId);
                 if (saved != null)
                 {
                     return StatusCode(409, "PUT agents/profile request is received without either header for a resource that already exists.");
@@ -1024,7 +1029,7 @@ namespace bracken_lrs.Controllers
                 try
                 {
                     JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(profile));
-                    await _repositoryService.SaveAgentProfile(profile, agentObject, profileId, Request.ContentType);
+                    await _repositoryService.SaveAgentProfileAsync(profile, agentObject, profileId, Request.ContentType);
 
                     return NoContent();
                 }
@@ -1035,7 +1040,7 @@ namespace bracken_lrs.Controllers
             }
             else
             {
-                await _repositoryService.SaveAgentProfile(profile, agentObject, profileId, Request.ContentType);
+                await _repositoryService.SaveAgentProfileAsync(profile, agentObject, profileId, Request.ContentType);
 
                 return NoContent();
             }
@@ -1044,7 +1049,7 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [HttpGet("agents/profile")]
-        public async Task<IActionResult> GetAgentsProfile([FromQuery]string agent, [FromQuery]string profileId, [FromQuery]string since)
+        public async Task<IActionResult> GetAgentsProfileAsync([FromQuery]string agent, [FromQuery]string profileId, [FromQuery]string since)
         {
             Response.Headers.Add("X-Experience-API-Consistent-Through", DateTime.UtcNow.ToString("o"));
 
@@ -1078,7 +1083,7 @@ namespace bracken_lrs.Controllers
 
             if (profileId != null)
             {
-                var doc = await _repositoryService.GetAgentProfileDocument(agentObject, profileId);
+                var doc = await _repositoryService.GetAgentProfileDocumentAsync(agentObject, profileId);
                 var profileAsString = doc.Content != null ? System.Text.Encoding.UTF8.GetString(doc.Content) : null;
                 if (profileAsString == null)
                 {
@@ -1097,7 +1102,7 @@ namespace bracken_lrs.Controllers
             }
             else
             {
-                var docs = await _repositoryService.GetAgentProfileDocuments(agentObject, sinceDateTIme);
+                var docs = await _repositoryService.GetAgentProfileDocumentsAsync(agentObject, sinceDateTIme);
                 var content = new List<string>(); // returns ids
                 foreach (var profile in docs)
                 {
@@ -1112,7 +1117,7 @@ namespace bracken_lrs.Controllers
 
         [ProducesResponseType(204)]
         [HttpDelete("agents/profile")]
-        public async Task<IActionResult> DeleteAgentProfile([FromQuery]string agent, [FromQuery]string profileId)
+        public async Task<IActionResult> DeleteAgentProfileAsync([FromQuery]string agent, [FromQuery]string profileId)
         {
             if (string.IsNullOrEmpty(agent))
             {
@@ -1134,7 +1139,7 @@ namespace bracken_lrs.Controllers
                 return BadRequest("The agent parameter must be a valid JSON.");
             }
 
-            await _repositoryService.DeleteAgentProfile(agentObject, profileId);
+            await _repositoryService.DeleteAgentProfileAsync(agentObject, profileId);
 
             return NoContent();
         }
@@ -1142,14 +1147,14 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [HttpGet("activities")]
-        public async Task<IActionResult> GetActivity([FromQuery]string activityId)
+        public async Task<IActionResult> GetActivityAsync([FromQuery]string activityId)
         {
             if (string.IsNullOrEmpty(activityId))
             {
                 return BadRequest("The activityId parameter must be supplied.");
             }
 
-            var activity = await _repositoryService.GetActivity(activityId);
+            var activity = await _repositoryService.GetActivityAsync(activityId);
 
             return Ok(activity);
         }
@@ -1157,7 +1162,7 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [HttpGet("agents")]
-        public async Task<IActionResult> GetAgents([FromQuery]string agent)
+        public async Task<IActionResult> GetAgentsAsync([FromQuery]string agent)
         {
             if (string.IsNullOrEmpty(agent))
             {
@@ -1171,7 +1176,7 @@ namespace bracken_lrs.Controllers
                 {
                     return BadRequest("GET agents: The agent parameter must be be uniquely identifiable.");
                 }
-                var person = await _repositoryService.GetPerson(agentObject);
+                var person = await _repositoryService.GetPersonAsync(agentObject);
                 return Ok(person);
             }
             catch (JsonException)

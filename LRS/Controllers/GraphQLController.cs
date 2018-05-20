@@ -35,7 +35,7 @@ namespace bracken_lrs.Controllers
         [ProducesResponseType(200, Type = typeof(ExecutionResult))]
         [ProducesResponseType(404)]
         // [Authorize]
-        public async Task<IActionResult> Post([FromBody]GraphQLQuery query)
+        public async Task<IActionResult> PostAsync([FromBody]GraphQLQuery query)
         {
             var schema = new Schema
             {

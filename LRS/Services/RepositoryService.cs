@@ -30,7 +30,7 @@ namespace bracken_lrs.Services
         private readonly IMongoClient _client;
         private readonly IMongoDatabase _db;
         private readonly AppSettings _appSettings;
-        private const string dbName = "lrs_dev"; // This should be per site and each site has collections, states, statements etc?
+        private const string dbName = "dev"; // This should be per site and each site has collections, states, statements etc?
         private const string statementCollection = "statements";
         private const string stateCollection = "states";
         private const string activityProfileCollection = "activities";

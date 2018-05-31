@@ -22,6 +22,7 @@ using MongoDB.Bson;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Newtonsoft.Json.Schema;
 using Serilog;
+using bracken_lrs.Attributes;
 
 namespace bracken_lrs
 {
@@ -58,6 +59,7 @@ namespace bracken_lrs
             services.AddSingleton<IxApiValidationService, xApiValidationService>();
             services.AddSingleton<IMultipartStatementService, MultipartStatementService>();
             services.AddSingleton<IHttpService, HttpService>();
+            services.AddScoped(typeof(TenantAttribute));
 
             services.AddSignalR();
 

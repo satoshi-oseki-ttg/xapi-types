@@ -18,6 +18,12 @@ namespace bracken_lrs.Middleware
 
         public async Task Invoke(HttpContext context)
         {
+            if (!context.Request.Path.Value.StartsWith("/tcapi"))
+            {
+                await _next.Invoke(context);
+                return;                
+            }
+
             context.Response.Headers["X-Experience-API-Version"] = "1.0.3";
 
             if (context.Request.Method == "POST" && context.Request.Query.Keys.Contains("method") // An alternate request doesn't always have xAPI version.

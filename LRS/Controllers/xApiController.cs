@@ -21,11 +21,13 @@ using bracken_lrs.Model;
 using bracken_lrs.Models.xAPI.Documents;
 using System.Security.Cryptography;
 using Newtonsoft.Json.Serialization;
+using bracken_lrs.Extensions;
 
 namespace bracken_lrs.Controllers
 {
     [Route("tcapi")]
     [Authorize]
+    [ServiceFilter(typeof(TenantAttribute))]
     public class xApiController : Controller
     {
         private readonly IxApiService _xApiService;
@@ -44,6 +46,10 @@ namespace bracken_lrs.Controllers
             NullValueHandling = NullValueHandling.Ignore,
             ContractResolver = new CamelCasePropertyNamesContractResolver()
         };
+        private string Tenant
+        {
+            get { return RouteData.Values.SingleOrDefault(r => r.Key == "tenant").Value as string; }
+        }
 
         public xApiController(
             IxApiService xApiService,
@@ -119,7 +125,7 @@ namespace bracken_lrs.Controllers
                 var agentObject = agent != null
                     ? JsonConvert.DeserializeObject<Agent>(agent)
                     : null;
-                var result = await _repositoryService.GetStatementsAsync
+                var result = await _repositoryService.SetDb(Tenant).GetStatementsAsync
                     (agentObject, verb, activity, registration, limit, since, until, acceptLanguages, format, ascending);
                 var lastStatementStored = result.Statements.Count > 0
                     ? result.Statements.First().Stored.ToString("o")
@@ -142,7 +148,7 @@ namespace bracken_lrs.Controllers
             }
 
             var id = voidedStatementId == Guid.Empty ? statementId : voidedStatementId;
-            var statement = await _repositoryService.GetStatementAsync(id, voidedStatementId != Guid.Empty, acceptLanguages, format);
+            var statement = await _repositoryService.SetDb(Tenant).GetStatementAsync(id, voidedStatementId != Guid.Empty, acceptLanguages, format);
             if (statement == null)
             {
                 return NotFound();
@@ -223,7 +229,7 @@ namespace bracken_lrs.Controllers
                 var lrsUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.Value}";
                 var statementJson = JsonConvert.SerializeObject(statement, jsonSerializerSettings);
 
-                return Ok(await _repositoryService.SaveStatementsAsync(
+                return Ok(await _repositoryService.SetDb(Tenant).SaveStatementsAsync(
                     JsonConvert.DeserializeObject<JObject>(statementJson, jsonSerializerSettings),
                     null, lrsUrl, userName));
             }
@@ -357,7 +363,7 @@ namespace bracken_lrs.Controllers
                 var userName = User.Identity.Name;
                 var lrsUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.Value}";
 
-                return Ok(await _repositoryService.SaveStatementsAsync(obj, null, lrsUrl, userName));
+                return Ok(await _repositoryService.SetDb(Tenant).SaveStatementsAsync(obj, null, lrsUrl, userName));
             }
             catch (Exception e)
             {
@@ -386,7 +392,7 @@ namespace bracken_lrs.Controllers
             {
                 var userName = User.Identity.Name;
                 var lrsUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.Value}";
-                await _repositoryService.SaveStatementsAsync(obj, statementId, lrsUrl, userName);
+                await _repositoryService.SetDb(Tenant).SaveStatementsAsync(obj, statementId, lrsUrl, userName);
                 return NoContent();
             }
             catch (Exception e)
@@ -476,7 +482,7 @@ namespace bracken_lrs.Controllers
                 {
                     JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(stateContent));
                     var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
-                    await _repositoryService.SaveStateAsync(stateContent, stateId, activityId, agentObject, registrationGuid, Request.ContentType);
+                    await _repositoryService.SetDb(Tenant).SaveStateAsync(stateContent, stateId, activityId, agentObject, registrationGuid, Request.ContentType);
 
                     return NoContent();
                 }
@@ -501,7 +507,7 @@ namespace bracken_lrs.Controllers
             //     var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
             //     //_xApiService.SaveState(value, stateId, activityId, agent);
             //     //_jobQueueService.EnqueueState(value, stateId, activityId, agent);
-            //     await _repositoryService.SaveState(value, stateId, activityId, agentObject, Request.ContentType);
+            //     await _repositoryService.SetDb(Tenant).SaveState(value, stateId, activityId, agentObject, Request.ContentType);
 
             //     return NoContent();
             // }
@@ -554,7 +560,7 @@ namespace bracken_lrs.Controllers
                     var agentObject = JsonConvert.DeserializeObject<Agent>(agent);
                     //_xApiService.SaveState(value, stateId, activityId, agent);
                     //_jobQueueService.EnqueueState(value, stateId, activityId, agent);
-                    await  _repositoryService.SaveStateAsync(value, stateId, activityId, agentObject, registrationGuid, Request.ContentType);
+                    await  _repositoryService.SetDb(Tenant).SaveStateAsync(value, stateId, activityId, agentObject, registrationGuid, Request.ContentType);
                     return NoContent();
                 }
                 catch (JsonException)
@@ -629,7 +635,7 @@ namespace bracken_lrs.Controllers
 
             if (stateId != null)
             {
-                var doc = await _repositoryService.GetStateDocumentAsync(stateId, activityId, agentObject, registrationGuid);
+                var doc = await _repositoryService.SetDb(Tenant).GetStateDocumentAsync(stateId, activityId, agentObject, registrationGuid);
                 var stateAsString = doc?.Content != null ? System.Text.Encoding.UTF8.GetString(doc.Content) : null;
                 if (stateAsString == null)
                 {
@@ -647,7 +653,7 @@ namespace bracken_lrs.Controllers
             }
             else
             {
-                var docs = await _repositoryService.GetStateDocumentsAsync(activityId, agentObject, registrationGuid, sinceDateTime);
+                var docs = await _repositoryService.SetDb(Tenant).GetStateDocumentsAsync(activityId, agentObject, registrationGuid, sinceDateTime);
                 var states = new List<string>(); // returns a list of ids
                 foreach (var doc in docs)
                 {
@@ -705,7 +711,7 @@ namespace bracken_lrs.Controllers
                 return BadRequest("GET activities/state: The registration parameter must be a valid UUID.");
             }
 
-            var isAcknowledged = await _repositoryService.DeleteStateDocumentAsync(stateId, activityId, agentObject, registrationGuid);
+            var isAcknowledged = await _repositoryService.SetDb(Tenant).DeleteStateDocumentAsync(stateId, activityId, agentObject, registrationGuid);
 
             return NoContent();
         }
@@ -738,7 +744,7 @@ namespace bracken_lrs.Controllers
                 try
                 {
                     JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(profile));
-                    await _repositoryService.SaveActivityProfileAsync(profile, activityId, profileId, Request.ContentType);
+                    await _repositoryService.SetDb(Tenant).SaveActivityProfileAsync(profile, activityId, profileId, Request.ContentType);
 
                     return NoContent();
                 }
@@ -773,7 +779,7 @@ namespace bracken_lrs.Controllers
             var ifMatchHeader = Request.Headers["If-Match"].FirstOrDefault();
             if (!string.IsNullOrEmpty(ifMatchHeader))
             {
-                var saved = await _repositoryService.GetActivityProfileDocumentAsync(activityId, profileId);
+                var saved = await _repositoryService.SetDb(Tenant).GetActivityProfileDocumentAsync(activityId, profileId);
                 var etag = _httpService.GetETag(System.Text.Encoding.UTF8.GetString(saved.Content));
                 if (ifMatchHeader != etag)
                 {
@@ -784,7 +790,7 @@ namespace bracken_lrs.Controllers
             var ifNoneMatchHeader = Request.Headers["If-None-Match"].FirstOrDefault();
             if (ifNoneMatchHeader == "*")
             {
-                var saved = await _repositoryService.GetActivityProfileDocumentAsync(activityId, profileId);
+                var saved = await _repositoryService.SetDb(Tenant).GetActivityProfileDocumentAsync(activityId, profileId);
                 if (saved != null)
                 {
                     return StatusCode(412, "PUT activities/profile request is received without either header for a resource that already exists.");
@@ -793,7 +799,7 @@ namespace bracken_lrs.Controllers
 
             if (string.IsNullOrEmpty(ifMatchHeader) && string.IsNullOrEmpty(ifNoneMatchHeader))
             {
-                var saved = await _repositoryService.GetActivityProfileDocumentAsync(activityId, profileId);
+                var saved = await _repositoryService.SetDb(Tenant).GetActivityProfileDocumentAsync(activityId, profileId);
                 if (saved != null)
                 {
                     return StatusCode(409, "PUT activities/profile request is received without either header for a resource that already exists.");
@@ -810,7 +816,7 @@ namespace bracken_lrs.Controllers
                 try
                 {
                     JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(profile));
-                    await _repositoryService.SaveActivityProfileAsync(profile, activityId, profileId, Request.ContentType);
+                    await _repositoryService.SetDb(Tenant).SaveActivityProfileAsync(profile, activityId, profileId, Request.ContentType);
 
                     return NoContent();
                 }
@@ -821,7 +827,7 @@ namespace bracken_lrs.Controllers
             }
             else
             {
-                await _repositoryService.SaveActivityProfileAsync(profile, activityId, profileId, Request.ContentType);
+                await _repositoryService.SetDb(Tenant).SaveActivityProfileAsync(profile, activityId, profileId, Request.ContentType);
 
                 return NoContent();
             }
@@ -853,7 +859,7 @@ namespace bracken_lrs.Controllers
             }
             if (profileId != null)
             {
-                var doc = await _repositoryService.GetActivityProfileDocumentAsync(activityId, profileId);
+                var doc = await _repositoryService.SetDb(Tenant).GetActivityProfileDocumentAsync(activityId, profileId);
                 var profileAsString = doc.Content != null ? System.Text.Encoding.UTF8.GetString(doc.Content) : null;
                 if (profileAsString == null)
                 {
@@ -872,7 +878,7 @@ namespace bracken_lrs.Controllers
             }
             else
             {
-                var docs = await _repositoryService.GetActivityProfileDocumentsAsync(activityId, sinceDateTime);
+                var docs = await _repositoryService.SetDb(Tenant).GetActivityProfileDocumentsAsync(activityId, sinceDateTime);
                 var content = new List<string>(); // returns ids
                 foreach (var profile in docs)
                 {
@@ -898,7 +904,7 @@ namespace bracken_lrs.Controllers
                 return BadRequest("DELETE activities/profile: The agent parameter must be supplied.");
             }
 
-            await _repositoryService.DeleteActivityProfileAsync(activityId, profileId);
+            await _repositoryService.SetDb(Tenant).DeleteActivityProfileAsync(activityId, profileId);
 
             return NoContent();
         }
@@ -947,7 +953,7 @@ namespace bracken_lrs.Controllers
                 try
                 {
                     JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(profile));
-                    await _repositoryService.SaveAgentProfileAsync(profile, agentObject, profileId, Request.ContentType);
+                    await _repositoryService.SetDb(Tenant).SaveAgentProfileAsync(profile, agentObject, profileId, Request.ContentType);
 
                     return NoContent();
                 }
@@ -992,7 +998,7 @@ namespace bracken_lrs.Controllers
             var ifMatchHeader = Request.Headers["If-Match"].FirstOrDefault();
             if (!string.IsNullOrEmpty(ifMatchHeader))
             {
-                var saved = await _repositoryService.GetAgentProfileDocumentAsync(agentObject, profileId);
+                var saved = await _repositoryService.SetDb(Tenant).GetAgentProfileDocumentAsync(agentObject, profileId);
                 var etag = _httpService.GetETag(System.Text.Encoding.UTF8.GetString(saved.Content));
                 if (ifMatchHeader != etag)
                 {
@@ -1003,7 +1009,7 @@ namespace bracken_lrs.Controllers
             var ifNoneMatchHeader = Request.Headers["If-None-Match"].FirstOrDefault();
             if (ifNoneMatchHeader == "*")
             {
-                var saved = await _repositoryService.GetAgentProfileDocumentAsync(agentObject, profileId);
+                var saved = await _repositoryService.SetDb(Tenant).GetAgentProfileDocumentAsync(agentObject, profileId);
                 if (saved != null)
                 {
                     return StatusCode(412, "PUT agents/profile equest is received without either header for a resource that already exists.");
@@ -1012,7 +1018,7 @@ namespace bracken_lrs.Controllers
 
             if (string.IsNullOrEmpty(ifMatchHeader) && string.IsNullOrEmpty(ifNoneMatchHeader))
             {
-                var saved = await _repositoryService.GetAgentProfileDocumentAsync(agentObject, profileId);
+                var saved = await _repositoryService.SetDb(Tenant).GetAgentProfileDocumentAsync(agentObject, profileId);
                 if (saved != null)
                 {
                     return StatusCode(409, "PUT agents/profile request is received without either header for a resource that already exists.");
@@ -1029,7 +1035,7 @@ namespace bracken_lrs.Controllers
                 try
                 {
                     JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(profile));
-                    await _repositoryService.SaveAgentProfileAsync(profile, agentObject, profileId, Request.ContentType);
+                    await _repositoryService.SetDb(Tenant).SaveAgentProfileAsync(profile, agentObject, profileId, Request.ContentType);
 
                     return NoContent();
                 }
@@ -1040,7 +1046,7 @@ namespace bracken_lrs.Controllers
             }
             else
             {
-                await _repositoryService.SaveAgentProfileAsync(profile, agentObject, profileId, Request.ContentType);
+                await _repositoryService.SetDb(Tenant).SaveAgentProfileAsync(profile, agentObject, profileId, Request.ContentType);
 
                 return NoContent();
             }
@@ -1083,7 +1089,7 @@ namespace bracken_lrs.Controllers
 
             if (profileId != null)
             {
-                var doc = await _repositoryService.GetAgentProfileDocumentAsync(agentObject, profileId);
+                var doc = await _repositoryService.SetDb(Tenant).GetAgentProfileDocumentAsync(agentObject, profileId);
                 var profileAsString = doc.Content != null ? System.Text.Encoding.UTF8.GetString(doc.Content) : null;
                 if (profileAsString == null)
                 {
@@ -1102,7 +1108,7 @@ namespace bracken_lrs.Controllers
             }
             else
             {
-                var docs = await _repositoryService.GetAgentProfileDocumentsAsync(agentObject, sinceDateTIme);
+                var docs = await _repositoryService.SetDb(Tenant).GetAgentProfileDocumentsAsync(agentObject, sinceDateTIme);
                 var content = new List<string>(); // returns ids
                 foreach (var profile in docs)
                 {
@@ -1139,7 +1145,7 @@ namespace bracken_lrs.Controllers
                 return BadRequest("The agent parameter must be a valid JSON.");
             }
 
-            await _repositoryService.DeleteAgentProfileAsync(agentObject, profileId);
+            await _repositoryService.SetDb(Tenant).DeleteAgentProfileAsync(agentObject, profileId);
 
             return NoContent();
         }
@@ -1154,7 +1160,7 @@ namespace bracken_lrs.Controllers
                 return BadRequest("The activityId parameter must be supplied.");
             }
 
-            var activity = await _repositoryService.GetActivityAsync(activityId);
+            var activity = await _repositoryService.SetDb(Tenant).GetActivityAsync(activityId);
 
             return Ok(activity);
         }
@@ -1176,7 +1182,7 @@ namespace bracken_lrs.Controllers
                 {
                     return BadRequest("GET agents: The agent parameter must be be uniquely identifiable.");
                 }
-                var person = await _repositoryService.GetPersonAsync(agentObject);
+                var person = await _repositoryService.SetDb(Tenant).GetPersonAsync(agentObject);
                 return Ok(person);
             }
             catch (JsonException)

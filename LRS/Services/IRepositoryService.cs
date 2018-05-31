@@ -6,11 +6,15 @@ using System.Collections.Generic;
 using System.IO;
 using Microsoft.Net.Http.Headers;
 using bracken_lrs.Models.xAPI.Documents;
+using MongoDB.Driver;
+using bracken_lrs.Models.Admin;
 
 namespace bracken_lrs.Services
 {
     public interface IRepositoryService
     {
+        IMongoClient Client { get; }
+        IMongoDatabase Db { set; }
         Task<string[]> SaveStatementsAsync(object json, Guid? statementId, string lrsUrl, string userName);
         Task<string[]> SaveStatementAsync(Statement statement, Guid? statementId, string lrsUrl, string userName);
         Task<Statement> GetStatementAsync(Guid? id, bool toGetVoided = false, IList<StringWithQualityHeaderValue> acceptLanguages = null, string format = "exact");
@@ -42,5 +46,10 @@ namespace bracken_lrs.Services
         Task<bool> DeleteAgentProfileAsync(Agent agent, string profileId);
         Task<Activity> GetActivityAsync(string activityId);
         Task<Person> GetPersonAsync(Agent agent);
+
+        // Admin
+        Task RegisterUser(UserViewModel user);
+        TenantModel GetTenantBySubdomain(string subdomain);
+        Task<TenantModel> AddCredentialToTenant(string tenantName, UserModel userModel);
     }
 }

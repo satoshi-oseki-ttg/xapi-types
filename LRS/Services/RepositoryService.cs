@@ -20,6 +20,7 @@ using System.IO;
 using System.Net.Http;
 using bracken_lrs.DictionaryExtensions;
 using System.Text;
+using bracken_lrs.Models.Admin;
 
 namespace bracken_lrs.Services
 {
@@ -28,13 +29,17 @@ namespace bracken_lrs.Services
         private readonly Uri courseType = new Uri("http://adlnet.gov/expapi/activities/course");
         private readonly Uri voidedVerb = new Uri("http://adlnet.gov/expapi/verbs/voided");
         private readonly IMongoClient _client;
-        private readonly IMongoDatabase _db;
+        public IMongoClient Client { get { return _client; } }
+        private IMongoDatabase _db;
+        public IMongoDatabase Db { set { _db = value; } }
         private readonly AppSettings _appSettings;
         private const string dbName = "dev"; // This should be per site and each site has collections, states, statements etc?
         private const string statementCollection = "statements";
         private const string stateCollection = "states";
         private const string activityProfileCollection = "activities";
         private const string agentProfileCollection = "agents";
+        private const string userCollection = "users";
+        private const string tenantCollection = "tenants";
         private readonly IxApiValidationService _xApiValidationService;
         private readonly IMultipartStatementService _multipartStatementService;
 
@@ -1011,6 +1016,87 @@ namespace bracken_lrs.Services
             }
 
             return person;
+        }
+
+        // Admin
+        public async Task RegisterUser(UserViewModel user)
+        {
+            var collection = _db.GetCollection<UserModel>(userCollection);
+            if (collection == null || user == null)
+            {
+                return;
+            }
+
+            var userModel = new UserModel
+            {
+                Id = Guid.NewGuid(),
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Email = user.Email,
+                Password = user.Password,
+                IsActive = true,
+                Tenants = new List<Guid>()
+            };
+
+            var tenant = await AddCredentialToTenant(user.Tenant, userModel);
+            userModel.Tenants.Add(tenant.Id);
+
+            await collection.InsertOneAsync(userModel);
+        }
+
+        public TenantModel GetTenantBySubdomain(string subdomain)
+        {
+            var collection = _db.GetCollection<TenantModel>(tenantCollection);
+            if (collection == null || string.IsNullOrEmpty(subdomain.Trim()))
+            {
+                return null;
+            }
+
+            var cursor = collection.Find(x => x.Name == subdomain);//string.Equals(x.Name, subdomain, StringComparison.OrdinalIgnoreCase));
+            
+            return cursor.FirstOrDefault();
+        }
+
+        public async Task<TenantModel> AddCredentialToTenant(string tenantName, UserModel userModel)
+        {
+            var collection = _db.GetCollection<TenantModel>(tenantCollection);
+            if (collection == null || string.IsNullOrEmpty(tenantName.Trim()))
+            {
+                return null;
+            }
+
+            var cursor = await collection.FindAsync(x => x.Name == tenantName);
+            var tenant = cursor.FirstOrDefault();
+            if (tenant == null)
+            {
+                tenant = new TenantModel
+                {
+                    Id = Guid.NewGuid(),
+                    Name = tenantName,
+                    LrsCredentials = new List<CredentialModel>(),
+                    Users = new List<Guid>()
+                };
+                await collection.InsertOneAsync(tenant);
+            }
+            if (tenant.LrsCredentials == null)
+            {
+                tenant.LrsCredentials = new List<CredentialModel>();
+            }
+            var credential = new CredentialModel
+            {
+                Id = Guid.NewGuid(),
+                Identifier = "abc",
+                Password = "123"
+            };
+            tenant.LrsCredentials.Add(credential);
+            tenant.Users.Add(userModel.Id);
+
+            return await collection.FindOneAndUpdateAsync(
+                Builders<TenantModel>.Filter
+                    .Eq("Name", tenantName),
+                Builders<TenantModel>.Update
+                    .Set("LrsCredentials", tenant.LrsCredentials)
+                    .Set("Users", tenant.Users));
         }
     }
 }

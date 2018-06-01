@@ -64,7 +64,7 @@ namespace bracken_lrs
             services.AddSignalR();
 
             // Add Hangfire services. 
-            services.AddHangfire(x => x.UseSqlServerStorage(Configuration.GetConnectionString("HangfireDbConnection")));
+            // services.AddHangfire(x => x.UseSqlServerStorage(Configuration.GetConnectionString("HangfireDbConnection")));
 
             services
                 .AddAuthentication("Basic")
@@ -96,8 +96,8 @@ namespace bracken_lrs
             {
                 Queues = new[] { "states", "statements", "default" }
             };
-            app.UseHangfireDashboard();
-            app.UseHangfireServer(options);
+            // app.UseHangfireDashboard();
+            // app.UseHangfireServer(options);
             app.UseAuthentication();
 
 //             var webSocketOptions = new WebSocketOptions()

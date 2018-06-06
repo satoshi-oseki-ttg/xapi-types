@@ -23,6 +23,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Newtonsoft.Json.Schema;
 using Serilog;
 using bracken_lrs.Attributes;
+using Microsoft.AspNetCore.HttpOverrides;
 
 namespace bracken_lrs
 {
@@ -96,8 +97,13 @@ namespace bracken_lrs
             {
                 Queues = new[] { "states", "statements", "default" }
             };
+
             // app.UseHangfireDashboard();
             // app.UseHangfireServer(options);
+            app.UseForwardedHeaders(new ForwardedHeadersOptions
+            {
+              ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+            });
             app.UseAuthentication();
 
 //             var webSocketOptions = new WebSocketOptions()

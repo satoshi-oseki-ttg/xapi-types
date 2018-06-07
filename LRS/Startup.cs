@@ -147,7 +147,7 @@ namespace bracken_lrs
 
             app.UseSignalR(routes =>
             {
-                routes.MapHub<ViewUpdateHub>("/viewupdate");
+                routes.MapHub<ViewUpdateHub>("viewupdate");
             });
 
             app.UseMiddleware<HeaderValidationMiddleware>();

@@ -11,49 +11,49 @@ namespace bracken_lrs.SignalR
         {
             if (Clients == null) return Task.FromResult<string>(null);
 
-            return Clients.All.InvokeAsync("Update-view", "");
+            return Clients.All.SendAsync("Update-view", "");
         }
 
         public Task Send(string message)
         {
             if (Clients == null) return Task.FromResult<string>(null);
 
-            return Clients.All.InvokeAsync("Send", message);
+            return Clients.All.SendAsync("Send", message);
         }
 
         public Task Update(IViewModel viewModel)
         {
             if (Clients == null) return Task.FromResult<string>(null);
 
-            return Clients.All.InvokeAsync("Update-view", viewModel.ToJson());
+            return Clients.All.SendAsync("Update-view", viewModel.ToJson());
         }
 
         public Task UpdateStatementCount()
         {
             if (Clients == null) return Task.FromResult<string>(null);
 
-            return Clients.All.InvokeAsync("update-statement-count");
+            return Clients.All.SendAsync("update-statement-count");
         }
 
         public Task UpdateLastStatements()
         {
             if (Clients == null) return Task.FromResult<string>(null);
 
-            return Clients.All.InvokeAsync("update-last-statements");
+            return Clients.All.SendAsync("update-last-statements");
         }
 
         public Task UpdateVerbStats()
         {
             if (Clients == null) return Task.FromResult<string>(null);
 
-            return Clients.All.InvokeAsync("update-verb-stats");
+            return Clients.All.SendAsync("update-verb-stats");
         }
 
         public Task UpdateProgress()
         {
             if (Clients == null) return Task.FromResult<string>(null);
 
-            return Clients.All.InvokeAsync("update-progress");
+            return Clients.All.SendAsync("update-progress");
         }
     }
 }

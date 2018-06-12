@@ -712,6 +712,11 @@ namespace bracken_lrs.Services
                 return null;
             }
 
+            if(agent.Account == null)
+      {
+        agent.Account = new AgentAccount(new Uri("http://empty"), string.Empty);
+      }
+
             var cursor = await collection.FindAsync
             (
                 x =>

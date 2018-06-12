@@ -36,7 +36,8 @@ namespace bracken_lrs.Controllers
             {
               string ds = DateTime.Now.ToLongDateString();
               string ts = DateTime.Now.ToLongTimeString();
-              string msg = $"I am alive {ds} {ts}";
+              string version = "1.0.2.2";
+              string msg = $"I am alive {ds} {ts} ({version})";
               return Ok(msg);
             }
 

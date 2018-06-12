@@ -137,11 +137,10 @@ namespace bracken_lrs
 //                 }
 
 //             });
-
+//.WithOrigins(new[] {"http://localhost:3000", "http://live.brackenlearning.com.satoshi.work"})
             app.UseCors(
                 builder => builder.AllowAnyMethod()
-                    //.AllowAnyOrigin()
-                    .WithOrigins(new[] {"http://localhost:3000", "http://live.brackenlearning.com.satoshi.work"})
+                    .AllowAnyOrigin()
                     .AllowCredentials()
                     .AllowAnyHeader());
 

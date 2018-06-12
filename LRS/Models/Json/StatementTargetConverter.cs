@@ -27,6 +27,7 @@ namespace bracken_lrs.Models.Json
 
                 try
                 {
+                    
                     return GetStatementTarget(jobj, type);
                 }
                 catch (Exception e)
@@ -58,7 +59,9 @@ namespace bracken_lrs.Models.Json
             }
             else if (type == Activity.OBJECT_TYPE)
             {
-                target = jObject.ToObject<Activity>();
+        //jObject["id"] = jObject["id"].ToString().Replace("http:///", "http://");
+        jObject = CleanUpUrls(jObject);
+        target = jObject.ToObject<Activity>();
             }
             else if (type == StatementRef.OBJECT_TYPE)
             {
@@ -81,5 +84,26 @@ namespace bracken_lrs.Models.Json
         {
             return false;
         }
+    private JObject CleanUpUrls(JObject jObject)
+    {
+      string temp = jObject["id"].ToString();
+      if (!string.IsNullOrEmpty(temp))
+      {
+        // Fix urls with 'http:///'
+        string working = temp.Replace("http:///", "http://");
+
+        // Fix urls that only have 'http://'
+        if(working.StartsWith("http://") && working.Length == 7)
+        {
+          working = "http://empty";
+        }
+
+        jObject["id"] = working;
+        
+      }
+        return jObject;
+    }
+
+
     }
 }

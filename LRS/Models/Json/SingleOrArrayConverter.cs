@@ -22,7 +22,14 @@ namespace bracken_lrs.Models.Json
             JToken token = JToken.Load(reader);
             if (token.Type == JTokenType.Array)
             {
-                return token.ToObject<List<T>>();
+        try
+        {
+          return token.ToObject<List<T>>();
+        }
+        catch
+        {
+          return null;
+        }
             }
             return new List<T> { token.ToObject<T>() };
         }

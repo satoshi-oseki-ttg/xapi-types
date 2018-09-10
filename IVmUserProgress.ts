@@ -1,4 +1,4 @@
-import { IVmCourseAttempt } from "./IVmCourseAttempt";
+import { IVmCourseSession } from './IVmCourseSession';
 
 export interface IVmUserProgress {
   username: string;
@@ -8,5 +8,5 @@ export interface IVmUserProgress {
   courseName: string;
   status: string;
   timestamp: Date;
-  sessions: IVmCourseAttempt[]
+  sessions: IVmCourseSession[]
 }

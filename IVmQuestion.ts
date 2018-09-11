@@ -10,5 +10,7 @@ export interface IVmQuestion {
     source?: string[];
     target?: string[];
 
+    correctAnswers: string[];  // array of comma delimited answers
+
     results: IVmResult[];
 }

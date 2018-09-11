@@ -13,8 +13,7 @@ export interface IVmResult {
   statementId: any; // binary uuid
   type: string;
   response: string; // 1:option1,0:option2,0:option3 (<selected>:<option text>) for 'choice' type
-  answerIds: number[]; // array of indexes for 'choice' type
-  correctAnswerIds: number[];  // comma delimited numbers for 'choice' type
+  answer: string;
   success: boolean;
   score?: number;
   duration: string | number; // 'PT12M1S' in xAPI, 12345 in view model as epoch

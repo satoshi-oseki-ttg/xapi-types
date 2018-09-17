@@ -6,4 +6,5 @@ export interface IVmCourseProgressResponse {
   users: IVmCourseProgress[];
   totalCount: number;
   maxNumberOfQuestions: number;
+  userIndexWithMaxNumberOfQuestions: number;
 }

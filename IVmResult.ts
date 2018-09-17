@@ -1,3 +1,5 @@
+import { IVmResponse } from './IVmResponse';
+
 // export interface IVmResult {
 //   statementId: string;
 //   type: string;
@@ -12,8 +14,8 @@ export interface IVmResult {
   id: string; // question id
   statementId: any; // binary uuid
   type: string;
-  response: string; // 1:option1,0:option2,0:option3 (<selected>:<option text>) for 'choice' type
-  answer: string;
+  response: IVmResponse; 
+  // answer: string; // used anywhere?
   success: boolean;
   score?: number;
   duration: string | number; // 'PT12M1S' in xAPI, 12345 in view model as epoch

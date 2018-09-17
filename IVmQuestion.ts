@@ -13,4 +13,5 @@ export interface IVmQuestion {
     correctAnswers: string[];  // array of comma delimited answers
 
     results: IVmResult[];
+    attempts: number; // necessary because 'results' above might not have all the results from all sessions.
 }

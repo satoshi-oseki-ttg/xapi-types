@@ -13,5 +13,7 @@ export interface IVmQuestion {
     correctAnswers: string[];  // array of comma delimited answers
 
     results: IVmResult[];
-    attempts: number; // necessary because 'results' above might not have all the results from all sessions.
+    attempts: number;
+    // necessary because 'results' above might not have all the results from all sessions.
+    // This is set in GraphQL server, not in Analytics.
 }

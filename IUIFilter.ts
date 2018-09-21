@@ -1,5 +1,5 @@
 export interface IUIFilter {
   field: string;
-  value: string[];
-  matchMode: string;
+  values: string[];
+  matchMode: string; // defaults to 'startsWith'
 }

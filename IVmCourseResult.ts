@@ -1,4 +1,5 @@
 import { IVmQuestion } from "./IVmQuestion";
+import { IVmCourseSession } from "./IVmCourseSession";
 
 export interface IVmCourseResult {
   username: string;
@@ -6,5 +7,6 @@ export interface IVmCourseResult {
   status: string;
   start: number;
   end: number;
+  sessions: IVmCourseSession[];
   questions: IVmQuestion[];
 }

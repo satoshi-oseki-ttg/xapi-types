@@ -1,5 +1,5 @@
-import { IVmQuestion } from "./IVmQuestion";
 import { IVmCourseSession } from './IVmCourseSession';
+import { IVmQuestion } from './IVmQuestion';
 
 export interface IVmCourseProgress {
   username: string;

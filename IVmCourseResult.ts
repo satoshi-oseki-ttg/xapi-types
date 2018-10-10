@@ -9,4 +9,5 @@ export interface IVmCourseResult {
   end: number;
   sessions: IVmCourseSession[];
   questions: IVmQuestion[];
+  lastTimestamp: Date;
 }

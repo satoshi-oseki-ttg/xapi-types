@@ -3,7 +3,7 @@ import { IVmCourseSession } from './IVmCourseSession';
 export interface IVmUserProgress {
   username: string;
   userDisplayName: string;
-  statementId: string;
+  statementId: any;
   courseId: string;
   courseName: string;
   status: string;

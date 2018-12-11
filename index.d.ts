@@ -1,4 +1,3 @@
-
 export type InteractionType =
 'true-false' |
 'choice' |
@@ -9,7 +8,7 @@ export type InteractionType =
 'performance' |
 'sequencing' |
 'numeric' |
-'other';  
+'other';
 
 export interface IReportConfig {
   type: string;
@@ -48,6 +47,7 @@ export interface IVmCourseProgress {
   sessions: IVmCourseSession[];
   status: string;
   questions: IVmQuestion[];
+  profiles: IVmUserProfile[];
 }
 
 export interface IVmCourseProgressResponse {
@@ -57,6 +57,7 @@ export interface IVmCourseProgressResponse {
   totalCount: number;
   maxNumberOfQuestions: number;
   userIndexWithMaxNumberOfQuestions: number;
+  profileFields: IVmProfileTitle[];
 }
 
 export interface IVmCourseResult {
@@ -128,5 +129,15 @@ export interface IVmUserProgress {
   courseName: string;
   status: string;
   timestamp: Date;
-  sessions: IVmCourseSession[]
+  sessions: IVmCourseSession[];
+}
+
+export interface IVmProfileTitle {
+  title: string;
+}
+
+export interface IVmUserProfile {
+  username: string;
+  title: string;
+  text: string;
 }

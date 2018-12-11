@@ -1,6 +1,6 @@
 {
-  "name": "ttg-xapi-types",
-  "version": "1.0.0",
+  "name": "@the-tarn-group/ttg-xapi-types",
+  "version": "1.2.0",
   "description": "The Tarn Group xAPI shared models",
   "main": "index.d.ts",
   "scripts": {

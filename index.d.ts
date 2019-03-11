@@ -57,7 +57,7 @@ export interface IVmCourseProgressResponse {
   totalCount: number;
   maxNumberOfQuestions: number;
   userIndexWithMaxNumberOfQuestions: number;
-  profileFields: IVmProfileTitle[];
+  profileFields: string[];
 }
 
 export interface IVmCourseResult {
@@ -113,7 +113,7 @@ export interface IVmResult {
   id: string; // question id
   statementId: any; // binary uuid
   type: string;
-  response: IVmResponse; 
+  response: IVmResponse;
   // answer: string; // used anywhere?
   success: boolean;
   score?: number;
@@ -130,10 +130,6 @@ export interface IVmUserProgress {
   status: string;
   timestamp: Date;
   sessions: IVmCourseSession[];
-}
-
-export interface IVmProfileTitle {
-  title: string;
 }
 
 export interface IVmUserProfile {

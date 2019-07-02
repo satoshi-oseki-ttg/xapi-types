@@ -58,6 +58,7 @@ export interface IVmCourseProgressResponse {
   maxNumberOfQuestions: number;
   userIndexWithMaxNumberOfQuestions: number;
   profileFields: string[];
+  questions: IModuleProgressQuestion[];
 }
 
 export interface IVmCourseResult {
@@ -129,11 +130,38 @@ export interface IVmUserProgress {
   courseName: string;
   status: string;
   timestamp: Date;
-  sessions: IVmCourseSession[];
+  sessions: IVmUserProgressSession[];
 }
 
 export interface IVmUserProfile {
   username: string;
   title: string;
   text: string;
+}
+
+export interface IVmUserProgressSession {
+  start: number;
+  end: number;
+  result: IResultValue;
+}
+
+export interface IResultValue {
+  completion: boolean;
+  success: boolean;
+  duration: string;
+  score: IScore;
+}
+
+export interface IScore {
+  scaled: number;
+  raw: number;
+  min: number;
+  max: number;
+}
+
+export interface IModuleProgressQuestion {
+  id: string;
+  text: string;
+  type: InteractionType;
+  correctAnswers: string[];
 }
